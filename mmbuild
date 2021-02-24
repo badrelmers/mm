@@ -145,10 +145,6 @@ select opt in "${options[@]}" ;do
 done
 
 
-########################################################
-# sometimes I will want to install the vm in another disk so:
-# I will create a config file where I will save the repositories I use so i can control them all with mm
-grep -Fq "${repository}" /etc/_mm.conf || { echo "${repository}" >> /etc/_mm.conf ; }
 
 ########################################################
 # main
@@ -204,6 +200,12 @@ nspawn_finished=NOTfinished
 test -d "${repository}" || { ERRORC ; echo "repository of nspawn containers was not created. create it manually first. you told me to use : ${repository}" ; ENDC ; exit ; }
 cd "${repository}"
 
+########################################################
+# sometimes I will want to install the vm in another disk so:
+# I will create a config file where I will save the repositories I use so i can control them all with mm
+grep -Fq "${repository}" /etc/_mm.conf || { echo "${repository}" >> /etc/_mm.conf ; }
+
+########################################################
 CTname_DIR=${repository}/_MyMM/${CTname}
 test -d ${CTname_DIR} && { WARNC ; echo "container dir exist: ${CTname_DIR}" ; ENDC ; trap '' EXIT RETURN INT ; exit  ; }
 mkdir -p _MyMM/${CTname}
