@@ -170,7 +170,7 @@ _list_all_containers(){
             cd "${repository}/_MyMM"
             echo 'Size    VM Name'
             echo ------------------------------
-            du -chs *
+            du -chs * || true # use true because if folder is empty du will return 1
         else
             WARNC ; echo "${repository}/_MyMM was not found. if you delete it then clean it from /etc/_mm.conf" ; ENDC
         fi
