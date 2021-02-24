@@ -133,7 +133,7 @@ select opt in "${options[@]}" ;do
     case $opt in
         *actual*) repository="$PWD" ; break ;;
         *repository*)
-            if [ -z "$repository" ]; then
+            if [ -z "${repository:-}" ]; then
                 read -p 'gave me repo full path or run me with a defined variable ( export repository=/fullpath ): ' repository
                 repository="${repository}"
             fi
