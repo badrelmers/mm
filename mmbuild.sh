@@ -1,84 +1,19 @@
- # you can past this function in a shell directly
- # deja espacio antes de la funcion para ke no se guarda esta gran funcion en el history file
- # deja datenowForHostname fuera de la function _create_container para ke se crean las variable de abajo despues de esta funcion
- export datenowForHostname=$(date +%Y%m%d%H%M%S)
+#!/bin/bash
 
-  
- _create_container(){
- 
-# si ejecuto esta function desde un interactive bash shell y hago ctrl-c me cerrara el ssh session tb a causa de trap ke se ejecutara dentro del shell
-# solution: ejecuta todo en un subshell () 
-# https://stackoverflow.com/questions/47380808/bash-exiting-current-function-by-calling-another-function
-(
-########################################################
-# variables
-########################################################
-# I need to create the repository manually
-# repository=./
-# repository=/media/ssd2/_MyNspawnStore
+# set -o xtrace ; set -xv
+# export LC_ALL=en_US.UTF-8 ; export LC_CTYPE=en_US.UTF-8 ; export LANG=en_US.UTF-8
+# export PYTHONIOENCODING=utf-8
 
-ROOTPASSWD=mypass
+# Set magic variables for current file & dir
+__dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# __file="${__dir}/$(basename "${BASH_SOURCE[0]}")"
+# __base="$(basename ${__file} .sh)"
+# __root="$(cd "$(dirname "${__dir}")" && pwd)" # <-- change this as it depends on your app
 
-########################################################
-ARCH=amd64
-
-# sin haveged aprece un error :random: 7 urandom warning(s) missed due to ratelimiting
-common_packages="haveged,dbus,apt-transport-https,wget,curl,locales,tzdata,man-db,manpages,dialog,procps,sudo,net-tools,nano,ifupdown,iproute2,apt-utils,less,lnav,ca-certificates,bash-completion"
-
-# ca-certificates solve this error: ERROR: The certificate of ‘github.com’ doesn't have a known issuer.
-# https://stackoverflow.com/questions/9224298/how-do-i-fix-certificate-errors-when-running-wget-on-an-https-url-in-cygwin
-
-# bash-completion
-# tab in qemu in debian do not work,  i cannot complet apt in... with tab
-# https://unix.stackexchange.com/questions/312456/debian-apt-not-apt-get-autocompletion-not-working
-
-# ifupdown
-# ubuntu 18 instala netplan pero si instalo ifupdown se usara ifupdown al configurar /etc/network/interfaces
-
-########################################################
-tput bold
-tput setaf 2
-
-PS3='Please enter your choice: '
-options=(
-           "install to actual dir: $PWD"
-           "install to a defined repository: ${repository:-}"
-        )
-
-select opt in "${options[@]}" ;do
-    tput sgr0
-    case $opt in
-        *actual*)
-            repository="$PWD"
-            break
-            ;;
-        *repository*)
-            if [ -z "$repository" ]; then
-                read -p 'gave me the repo path or run me with a defined $repository variable: ' repository
-                repository="${repository}"
-            fi
-            break
-            ;;
-        *)
-            echo "invalid option $REPLY"
-            # break
-            exit
-            ;;
-    esac
-done
-
-
-########################################################
-# sometimes I will want to install the vm in another disk so:
-# I will create a config file where I will save the repositories I use so i can control them all with mm
-grep -Fq "${repository}" /etc/_mm.conf || { echo "${repository}" >> /etc/_mm.conf ; }
-
-
-########################################################
-# common
-########################################################
+# cd "${__dir}" || exit
+###################################################
 _common_functions(){
-    # export datenowForHostname=$(date +%Y%m%d%H%M%S)
+    export datenow=$(date +%Y%m%d_%H%M%S)
     echocolors(){
         INFOC()   { echo -e "\e[0;30m\e[42m" ; }      # black on green 
         WARNC()   { echo -e "\e[0;1;33;40;7m" ; }     # black on yellow ;usa invert 7; y light text 1 
@@ -140,15 +75,75 @@ _common_functions(){
         # trap - EXIT is needed to prevent runing the trap twice when ERR is trigered
         # why use ERR and EXIT? because undefined variables will not trigguer the trap
         # trap 'error_handlerV2 $? ${LINENO}; trap - EXIT' EXIT ERR
+        
+        # i will use this instead because i will use trap exit bellow to clean whene there is errors
         trap 'error_handlerV2 $? ${LINENO}' ERR
         export -f error_handlerV2
     }
     _trap_v2
 
-    
 }
 _common_functions
 export -f _common_functions
+################################################################
+
+export datenowForHostname=$(date +%Y%m%d%H%M%S)
+
+  
+ _create_container(){
+
+########################################################
+# variables
+########################################################
+# I need to create the repository manually  to be conscient of the location and prevent bad things
+# repository=./
+# repository=/media/ssd2/_MyNspawnStore
+
+
+# sin haveged aprece un error :random: 7 urandom warning(s) missed due to ratelimiting
+common_packages="haveged,dbus,apt-transport-https,wget,curl,locales,tzdata,man-db,manpages,dialog,procps,sudo,net-tools,nano,ifupdown,iproute2,apt-utils,less,lnav,ca-certificates,bash-completion"
+
+# ca-certificates solve this error: ERROR: The certificate of ‘github.com’ doesn't have a known issuer.
+# https://stackoverflow.com/questions/9224298/how-do-i-fix-certificate-errors-when-running-wget-on-an-https-url-in-cygwin
+
+# bash-completion
+# tab in qemu in debian do not work,  i cannot complet apt in... with tab
+# https://unix.stackexchange.com/questions/312456/debian-apt-not-apt-get-autocompletion-not-working
+
+# ifupdown
+# ubuntu 18 instala netplan pero si instalo ifupdown se usara ifupdown al configurar /etc/network/interfaces
+
+########################################################
+tput bold
+tput setaf 2
+
+PS3='Please enter your choice: '
+options=(
+           "install to actual dir: $PWD"
+           "install to a defined repository: ${repository:-}"
+        )
+
+select opt in "${options[@]}" ;do
+    tput sgr0
+    case $opt in
+        *actual*) repository="$PWD" ; break ;;
+        *repository*)
+            if [ -z "$repository" ]; then
+                read -p 'gave me repo full path or run me with a defined variable ( export repository=/fullpath ): ' repository
+                repository="${repository}"
+            fi
+            break ;;
+        *)  echo "invalid option $REPLY"
+            # break
+            exit ;;
+    esac
+done
+
+
+########################################################
+# sometimes I will want to install the vm in another disk so:
+# I will create a config file where I will save the repositories I use so i can control them all with mm
+grep -Fq "${repository}" /etc/_mm.conf || { echo "${repository}" >> /etc/_mm.conf ; }
 
 ########################################################
 # main
@@ -176,18 +171,9 @@ _clean() {
 }
 
 
-if [ $# -lt 4 ]
+if [ $# -lt 5 ]
 then
-    WARNC ; echo "usage: $0 <image-file> <hostname> <OS name> <OSversion> [optional debootstrap args]
-_create_container   buster${datenowForHostname}     buster${datenowForHostname}     debian   buster
-_create_container   bullseye${datenowForHostname}   bullseye${datenowForHostname}   debian   bullseye
-_create_container   testing${datenowForHostname}    testing${datenowForHostname}    debian   testing
-_create_container   unstable${datenowForHostname}   unstable${datenowForHostname}   debian   unstable
-
-_create_container   xenial${datenowForHostname}     xenial${datenowForHostname}     ubuntu   xenial
-_create_container   bionic${datenowForHostname}     bionic${datenowForHostname}     ubuntu   bionic
-_create_container   focal${datenowForHostname}      focal${datenowForHostname}      ubuntu   focal
-    " 1>&2 ; ENDC
+    WARNC ; echo "usage: $0 <image-file> <hostname> <OS name> <OSversion> [optional debootstrap args]" 1>&2 ; ENDC
     # exit 1
 fi
 
@@ -195,26 +181,28 @@ CTname=$1
 HOSTNAME=$2
 OSFLAVOUR=$3
 OSversion=$4
-shift 4
+ROOTPASSWD=$5
+shift 5
 
 
 # this will run always, EXIT es para cuando este script como script file, y RETURN es para cuando ejecuto la function directamente desde un shell
-trap _clean EXIT RETURN INT
+# trap _clean EXIT RETURN INT
+trap _clean EXIT INT
 
 
 
 nspawn_finished=NOTfinished
 
 
+# set -x
 
-
-test -d "${repository}" || { ERRORC ; echo "repository of nspawn containers was not created. create one manually first. you told me to use : ${repository}" ; ENDC ; false ; }
+test -d "${repository}" || { ERRORC ; echo "repository of nspawn containers was not created. create it manually first. you told me to use : ${repository}" ; ENDC ; exit ; }
 cd "${repository}"
 
 CTname_DIR=${repository}/_MyMM/${CTname}
 test -d ${CTname_DIR} && { WARNC ; echo "container dir exist: ${CTname_DIR}" ; ENDC ; trap '' EXIT RETURN INT ; exit  ; }
-mkdir -p ${CTname_DIR}
-cd ${CTname_DIR}
+mkdir -p _MyMM/${CTname}
+cd _MyMM/${CTname}
 
 
 command -v systemd-nspawn > /dev/null || apt-get install -y systemd-container
@@ -313,7 +301,7 @@ fi
 ########################################################
 INFOC ; echo "debootstrap $OSFLAVOUR $OSversion..." ; ENDC
 mkdir -p ${repository}/debootstrap_pkg/${OSFLAVOUR}_${OSversion}
-debootstrap --merged-usr --cache-dir ${repository}/debootstrap_pkg/${OSFLAVOUR}_${OSversion} --arch=amd64 --components=${components} --include=$common_packages $* $OSversion ${CTname_DIR} $repo
+debootstrap --merged-usr --cache-dir ${repository}/debootstrap_pkg/${OSFLAVOUR}_${OSversion} --components=${components} --include=$common_packages $* $OSversion ${CTname_DIR} $repo
 
 
 ########################################################
@@ -811,32 +799,49 @@ nspawn_finished=finished
 
 
 
-# fin del subshell
-)
-
-
 }
 
 
+_build(){
+    if [ $# -lt 5 ] ; then
+        _help
+        echo "error: args less than 5"
+    else
+        _create_container $@
+    fi
+}
 
 
  # create a quick guide with the command I need to execute in the shell
- echo "
 
- 
- 
- 
+_help(){
+    echo "
 ======================================================================================
 usage:
-_create_container   imagename                Hostname (a..Z y 0..9 y -)  OS    OS release
-_create_container   buster${datenowForHostname}     buster${datenowForHostname}     debian   buster
-_create_container   bullseye${datenowForHostname}   bullseye${datenowForHostname}   debian   bullseye
-_create_container   testing${datenowForHostname}    testing${datenowForHostname}    debian   testing
-_create_container   unstable${datenowForHostname}   unstable${datenowForHostname}   debian   unstable
+mmbuild   imagename                Hostname (aZ09-)         OS       OS release   pass   [optional debootstrap args]
 
-_create_container   xenial${datenowForHostname}     xenial${datenowForHostname}     ubuntu   xenial
-_create_container   bionic${datenowForHostname}     bionic${datenowForHostname}     ubuntu   bionic
-_create_container   focal${datenowForHostname}      focal${datenowForHostname}      ubuntu   focal
+mmbuild   buster${datenowForHostname}     buster${datenowForHostname}     debian   buster       bbbbbbnn
+mmbuild   bullseye${datenowForHostname}   bullseye${datenowForHostname}   debian   bullseye     bbbbbbnn
+mmbuild   testing${datenowForHostname}    testing${datenowForHostname}    debian   testing      bbbbbbnn
+mmbuild   unstable${datenowForHostname}   unstable${datenowForHostname}   debian   unstable     bbbbbbnn
+
+mmbuild   xenial${datenowForHostname}     xenial${datenowForHostname}     ubuntu   xenial       bbbbbbnn
+mmbuild   bionic${datenowForHostname}     bionic${datenowForHostname}     ubuntu   bionic       bbbbbbnn
+mmbuild   focal${datenowForHostname}      focal${datenowForHostname}      ubuntu   focal        bbbbbbnn
 
 "
+}
+
+# cmd=${1:-}
+# shift || true # esta es importante para poder usar $@ sin ke contenga $1 ke se consume in case...
+# case "$cmd" in
+
+
+case $@ in
+    help|h)      _help ;;
+    "")          _help ;;
+    *)           _build $@ ;;
+esac
+
+
 
