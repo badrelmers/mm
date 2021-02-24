@@ -37,35 +37,56 @@ _common_functions(){
     export -f echocolors
     echocolors
 
-    ###################################################
-    #sal si pasa un error y guardalo in el log general
-    ###################################################
+    _trap_v2(){
+        ###################################################
+        # unofficial strict mode v2
+        ###################################################
+        set -o errexit   # -e: exit script on error
+        set -o nounset   # -u: no unset variables
+        set -o pipefail  # failure on any command errors
+        set -o errtrace  # -E: shell functions inherit ERR trap
+        set -o functrace # -T: shell functions inherit DEBUG trap
 
-    #(unofficial strict mode)
-    set -euo pipefail 
+        error_handlerV2(){
+        # error_handlerV2()(
+            # print only last 3 lines of the command
+            local ___bash_command=$( printf '%s\n' "${BASH_COMMAND:-unkownnn}" | head -3)
+            HIDEC ; echo "trap..._Func: ${FUNCNAME[1]:-unkownnn}" ; ENDC
+            # [[ $1 -eq 0 ]] is to prevent running the trap because of trap EXIT when there is no error, i can use use trap ERR instead of trap ERR EXIT, but trap ERR do not trigger trap with undefined variables error; that s why i use trap ERR EXIT and [[ $1 -eq 0 ]]
+            [[ $1 -eq 0 ]] && return 0
+            ERRORC
+            echo "_Exit:  $1   _Func: ${FUNCNAME[1]:-unkownnn}"
+            echo "_line:  ${BASH_LINENO[*]:-unkownnn} in ${BASH_SOURCE[*]:-unkownnn}"
+            echo "_comm:  $___bash_command"
+            echo ''
+            
+            # echo caller="$(caller)"
+            # echo FUNCNAMEall="${FUNCNAME[*]:-unkownnn}"
+            # echo FUNCNAME="${FUNCNAME}"
+            # echo LINENO=$2
 
-    #TODO : ke hace esto?
-    set -E   #set -o errtrace
+            ENDC
+            read -p 'Press enter to exit the trap'
+            # read -p 'Press enter to exit the trap' < /dev/tty
+            
+            # tty=$(readlink /proc/$$/fd/2)
+            # read -p 'Press enter to exit the trap' < $tty
+            
+            
+            # exit 0 will prevent trigerring trap again in outside funcion after runing in an inner function
+            # exit 0 do not seem to do anything, ERR ya hace ke el script exit , so i do no think i need to use exit here
+            # exit 1 will trigger trap EXIT if trap ERR was trigered first, so the trap is run twice
+            # exit 0
+        # )
+        }
 
-
-    error_handler() {  # TODO investiga porke ${BASH_SOURCE[*]} imprime el source  dos veces
-        ERRORC
-        echo ''
-        echo '_________________________________'
-        echo "${datenow}___error non-zero con exit code $?"
-        echo ''
-        echo "___en la linea ${BASH_LINENO[*]} in ${BASH_SOURCE[*]}"
-        echo ''
-        echo "___last bash command: $BASH_COMMAND"
-        echo '_________________________________'
-        echo ''
-        ENDC
-        # read -p 'Press enter to exit'
-        exit 1
+        # trap - EXIT is needed to prevent runing the trap twice when ERR is trigered
+        # why use ERR and EXIT? because undefined variables will not trigguer the trap
+        trap 'error_handlerV2 $? ${LINENO}; trap - EXIT' EXIT ERR
+        export -f error_handlerV2
     }
+    _trap_v2
 
-    trap "error_handler" ERR
-    export -f "error_handler"
 }
 _common_functions
 export -f _common_functions
