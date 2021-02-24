@@ -1,7 +1,9 @@
-# mm
-machinectl/systemd-nspawn manager
+**mm** is a machinectl/systemd-nspawn manager
+
+**mmbuild** is a container creator for nspawn using debootstrap (tested with debian and ubuntu, others may work too)
 
 # install
+install mm and mmbuild to /usr/local/bin
 ```bash
 git clone https://github.com/badrelmers/mm
 bash ./mm/install.sh
@@ -9,5 +11,9 @@ bash ./mm/install.sh
 
 # help
 ```bash
-mm h
+mm help
+mmuild help
 ```
+
+# note:
+it works fine but need some cleaning.
