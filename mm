@@ -1,27 +1,25 @@
+#!/bin/bash
 
-
- _install(){
 # mm machinectl manager
-# author: badr in 2021
+# author: Badr Elmers in 2021
 
 
-_common_functions(){
-    # set -o xtrace ; set -xv ; set -o functrace
-    # export LC_ALL=en_US.UTF-8 ; export LC_CTYPE=en_US.UTF-8 ; export LANG=en_US.UTF-8
-    # export PYTHONIOENCODING=utf-8
+# set -o xtrace ; set -xv
+# export LC_ALL=en_US.UTF-8 ; export LC_CTYPE=en_US.UTF-8 ; export LANG=en_US.UTF-8
+# export PYTHONIOENCODING=utf-8
 
-    # Set magic variables for current file & dir
-    # __dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-    # __file="${__dir}/$(basename "${BASH_SOURCE[0]}")"
-    # __base="$(basename ${__file} .sh)"
-    # __root="$(cd "$(dirname "${__dir}")" && pwd)" # <-- change this as it depends on your app
+# Set magic variables for current file & dir
+# __dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# __file="${__dir}/$(basename "${BASH_SOURCE[0]}")"
+# __base="$(basename ${__file} .sh)"
+# __root="$(cd "$(dirname "${__dir}")" && pwd)" # <-- change this as it depends on your app
 
-    # cd "${__dir}" || exit
-    
-    
+# cd "${__dir}" || exit
+
+
+###################################################
+_common_functions(){    
     export datenow=$(date +%Y%m%d_%H%M%S)
-
-    ###################################################
     echocolors(){
         INFOC()   { echo -e "\e[0;30m\e[42m" ; }      # black on green 
         WARNC()   { echo -e "\e[0;1;33;40;7m" ; }     # black on yellow ;usa invert 7; y light text 1 
@@ -90,6 +88,8 @@ _common_functions(){
 }
 _common_functions
 export -f _common_functions
+###################################################
+
 
 ___get_ct_repo(){
     # puesto ke uso multiple repositories , necesito saber en ke repo esta el container
@@ -361,7 +361,7 @@ config file: /etc/_mm.conf
 ########################################
 ### main 
 ########################################
-RETVAL=0
+# RETVAL=0
 
 cmd=${1:-}
 shift || true # esta es importante para poder usar $@ sin ke contenga $1 ke se consume in case...
@@ -412,34 +412,6 @@ esac
 
 # no hagas esto pk va a sobrescribir el exit code de los commandos ke fallan y no pasaran so return exit correcto con $?
 # exit $RETVAL
- }
-
- # _____________________________________________________
 
 
-
- # install the script 
- echo '#!/bin/bash' > /usr/local/bin/mm
- declare -f _install >> /usr/local/bin/mm
-
- # declare will put the function as function in the file so let s solve it;so it will not run if it s not called 
- prepare_script(){
-    met1_prepare(){
-        # met1:this will remove the function parts
-        # delet first two lines
-        sed -i '1,2d' /usr/local/bin/mm
-        # delete last line
-        sed -i '$d' /usr/local/bin/mm
-    }
-    # met1_prepare
-    
-    met2_prepare(){
-        # met2:call the function
-        echo '_install "$@"' >> /usr/local/bin/mm
-    }
-    met2_prepare
- }
- prepare_script
- 
-chmod +x /usr/local/bin/mm
 
