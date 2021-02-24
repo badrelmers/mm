@@ -51,7 +51,7 @@ _common_functions(){
         # error_handlerV2()(
             # print only last 3 lines of the command
             local ___bash_command=$( printf '%s\n' "${BASH_COMMAND:-unkownnn}" | head -3)
-            HIDEC ; echo "trap..._Func: ${FUNCNAME[1]:-unkownnn}" ; ENDC
+            # HIDEC ; echo "trap..._Func: ${FUNCNAME[1]:-unkownnn}" ; ENDC
             # [[ $1 -eq 0 ]] is to prevent running the trap because of trap EXIT when there is no error, i can use use trap ERR instead of trap ERR EXIT, but trap ERR do not trigger trap with undefined variables error; that s why i use trap ERR EXIT and [[ $1 -eq 0 ]]
             [[ $1 -eq 0 ]] && return 0
             ERRORC
