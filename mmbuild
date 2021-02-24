@@ -745,6 +745,8 @@ ExecStart=/usr/bin/systemd-nspawn --quiet --keep-unit --boot --link-journal=try-
 ###end of priv and unpriv container
 ###===============================================
 
+#sometimes i need to reload systemctl to detect my changes to this file
+# systemctl daemon-reload
 EOF
 
 # copy service override file to /etc/systemd/system 
