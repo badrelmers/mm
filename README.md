@@ -2,7 +2,8 @@
 machinectl/systemd-nspawn manager
 
 # install
-curl https://raw.githubusercontent.com/badrelmers/mm/main/mm.sh | bash
+git clone https://github.com/badrelmers/mm
+bash ./mm/mm.sh
 
 # help
 mm h
