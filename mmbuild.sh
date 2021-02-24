@@ -1,0 +1,842 @@
+ # you can past this function in a shell directly
+ # deja espacio antes de la funcion para ke no se guarda esta gran funcion en el history file
+ # deja datenowForHostname fuera de la function _create_container para ke se crean las variable de abajo despues de esta funcion
+ export datenowForHostname=$(date +%Y%m%d%H%M%S)
+
+  
+ _create_container(){
+ 
+# si ejecuto esta function desde un interactive bash shell y hago ctrl-c me cerrara el ssh session tb a causa de trap ke se ejecutara dentro del shell
+# solution: ejecuta todo en un subshell () 
+# https://stackoverflow.com/questions/47380808/bash-exiting-current-function-by-calling-another-function
+(
+########################################################
+# variables
+########################################################
+# I need to create the repository manually
+# repository=./
+# repository=/media/ssd2/_MyNspawnStore
+
+ROOTPASSWD=mypass
+
+########################################################
+ARCH=amd64
+
+# sin haveged aprece un error :random: 7 urandom warning(s) missed due to ratelimiting
+common_packages="haveged,dbus,apt-transport-https,wget,curl,locales,tzdata,man-db,manpages,dialog,procps,sudo,net-tools,nano,ifupdown,iproute2,apt-utils,less,lnav,ca-certificates,bash-completion"
+
+# ca-certificates solve this error: ERROR: The certificate of ‘github.com’ doesn't have a known issuer.
+# https://stackoverflow.com/questions/9224298/how-do-i-fix-certificate-errors-when-running-wget-on-an-https-url-in-cygwin
+
+# bash-completion
+# tab in qemu in debian do not work,  i cannot complet apt in... with tab
+# https://unix.stackexchange.com/questions/312456/debian-apt-not-apt-get-autocompletion-not-working
+
+# ifupdown
+# ubuntu 18 instala netplan pero si instalo ifupdown se usara ifupdown al configurar /etc/network/interfaces
+
+########################################################
+tput bold
+tput setaf 2
+
+PS3='Please enter your choice: '
+options=(
+           "install to actual dir: $PWD"
+           "install to a defined repository: ${repository:-}"
+        )
+
+select opt in "${options[@]}" ;do
+    tput sgr0
+    case $opt in
+        *actual*)
+            repository="$PWD"
+            break
+            ;;
+        *repository*)
+            if [ -z "$repository" ]; then
+                read -p 'gave me the repo path or run me with a defined $repository variable: ' repository
+                repository="${repository}"
+            fi
+            break
+            ;;
+        *)
+            echo "invalid option $REPLY"
+            # break
+            exit
+            ;;
+    esac
+done
+
+
+########################################################
+# sometimes I will want to install the vm in another disk so:
+# I will create a config file where I will save the repositories I use so i can control them all with mm
+grep -Fq "${repository}" /etc/_mm.conf || { echo "${repository}" >> /etc/_mm.conf ; }
+
+
+########################################################
+# common
+########################################################
+_common_functions(){
+    # export datenowForHostname=$(date +%Y%m%d%H%M%S)
+    echocolors(){
+        INFOC()   { echo -e "\e[0;30m\e[42m" ; }      # black on green 
+        WARNC()   { echo -e "\e[0;1;33;40;7m" ; }     # black on yellow ;usa invert 7; y light text 1 
+        ERRORC()  { echo -e "\e[0;1;37m\e[41m" ; }    # bright white on red
+
+        HIDEC()   { echo -e "\e[0;1;30m\e[47m" ; }    # hide color: white on grey (bright)
+        #HIDEC()   { echo -e "\e[0;1;7;30m\e[47m" ; } # hide color: white on grey (darker)
+        ENDC()    { echo -e "\e[0m" ; }               # reset colors
+
+        INFO2C()  { echo -e "\e[0;1;37m\e[44m" ; }    # bright white on blue; 1  is needed sino 37 vuelve grey in mintty
+        INFO3C()  { echo -e "\e[0;30m\e[46m" ; }      # black on white blue
+    }
+    export -f echocolors
+    echocolors
+
+    _trap_v2(){
+        ###################################################
+        # unofficial strict mode v2
+        ###################################################
+        set -o errexit   # -e: exit script on error
+        set -o nounset   # -u: no unset variables
+        set -o pipefail  # failure on any command errors
+        set -o errtrace  # -E: shell functions inherit ERR trap
+        set -o functrace # -T: shell functions inherit DEBUG trap
+
+        error_handlerV2(){
+        # error_handlerV2()(
+            # print only last 3 lines of the command
+            local ___bash_command=$( printf '%s\n' "${BASH_COMMAND:-unkownnn}" | head -3)
+            HIDEC ; echo "trap..._Func: ${FUNCNAME[1]:-unkownnn}" ; ENDC
+            # [[ $1 -eq 0 ]] is to prevent running the trap because of trap EXIT when there is no error, i can use use trap ERR instead of trap ERR EXIT, but trap ERR do not trigger trap with undefined variables error; that s why i use trap ERR EXIT and [[ $1 -eq 0 ]]
+            [[ $1 -eq 0 ]] && return 0
+            ERRORC
+            echo "_Exit:  $1   _Func: ${FUNCNAME[1]:-unkownnn}"
+            echo "_line:  ${BASH_LINENO[*]:-unkownnn} in ${BASH_SOURCE[*]:-unkownnn}"
+            echo "_comm:  $___bash_command"
+            echo ''
+            
+            # echo caller="$(caller)"
+            # echo FUNCNAMEall="${FUNCNAME[*]:-unkownnn}"
+            # echo FUNCNAME="${FUNCNAME}"
+            # echo LINENO=$2
+
+            ENDC
+            read -p 'Press enter to exit the trap'
+            # read -p 'Press enter to exit the trap' < /dev/tty
+            
+            # tty=$(readlink /proc/$$/fd/2)
+            # read -p 'Press enter to exit the trap' < $tty
+            
+            
+            # exit 0 will prevent trigerring trap again in outside funcion after runing in an inner function
+            # exit 0 do not seem to do anything, ERR ya hace ke el script exit , so i do no think i need to use exit here
+            # exit 1 will trigger trap EXIT if trap ERR was trigered first, so the trap is run twice
+            # exit 0
+        # )
+        }
+
+        # trap - EXIT is needed to prevent runing the trap twice when ERR is trigered
+        # why use ERR and EXIT? because undefined variables will not trigguer the trap
+        # trap 'error_handlerV2 $? ${LINENO}; trap - EXIT' EXIT ERR
+        trap 'error_handlerV2 $? ${LINENO}' ERR
+        export -f error_handlerV2
+    }
+    _trap_v2
+
+    
+}
+_common_functions
+export -f _common_functions
+
+########################################################
+# main
+########################################################
+_clean() {
+    WARNC ; echo "begin cleaning..." ; ENDC
+        
+    # si nspawn_finished no es igual finished  borramos la imagen 
+    [ "${nspawn_finished:-}" = "NOTfinished" ] && { 
+        echo "nspawn creation not finished so let s remove the folder: ${CTname_DIR:-unkownennn}"
+        test -d ${CTname_DIR:-unkownennn} && rm -rf ${CTname_DIR:-unkownennn}
+        test -d ${CTname_DIR:-unkownennn}-clean && rm -rf ${CTname_DIR:-unkownennn}-clean
+        test -f /var/lib/machines/${CTname:-unkownennn} && rm /var/lib/machines/${CTname:-unkownennn}
+        test -f /var/lib/machines/${CTname:-unkownennn}-clean && rm /var/lib/machines/${CTname:-unkownennn}-clean
+    }
+    
+    # disable trap and fail on errors sino me saldra el bash on errors
+    # set +euo pipefail 
+    # set +E
+    # trap - ERR EXIT RETURN INT
+    
+    # esta linea es importante sino se ejecuta el trap ERR si la linea de arriba da exit 1
+    echo "end cleaning..."
+    exit 1
+}
+
+
+if [ $# -lt 4 ]
+then
+    WARNC ; echo "usage: $0 <image-file> <hostname> <OS name> <OSversion> [optional debootstrap args]
+_create_container   buster${datenowForHostname}     buster${datenowForHostname}     debian   buster
+_create_container   bullseye${datenowForHostname}   bullseye${datenowForHostname}   debian   bullseye
+_create_container   testing${datenowForHostname}    testing${datenowForHostname}    debian   testing
+_create_container   unstable${datenowForHostname}   unstable${datenowForHostname}   debian   unstable
+
+_create_container   xenial${datenowForHostname}     xenial${datenowForHostname}     ubuntu   xenial
+_create_container   bionic${datenowForHostname}     bionic${datenowForHostname}     ubuntu   bionic
+_create_container   focal${datenowForHostname}      focal${datenowForHostname}      ubuntu   focal
+    " 1>&2 ; ENDC
+    # exit 1
+fi
+
+CTname=$1
+HOSTNAME=$2
+OSFLAVOUR=$3
+OSversion=$4
+shift 4
+
+
+# this will run always, EXIT es para cuando este script como script file, y RETURN es para cuando ejecuto la function directamente desde un shell
+trap _clean EXIT RETURN INT
+
+
+
+nspawn_finished=NOTfinished
+
+
+
+
+test -d "${repository}" || { ERRORC ; echo "repository of nspawn containers was not created. create one manually first. you told me to use : ${repository}" ; ENDC ; false ; }
+cd "${repository}"
+
+CTname_DIR=${repository}/_MyMM/${CTname}
+test -d ${CTname_DIR} && { WARNC ; echo "container dir exist: ${CTname_DIR}" ; ENDC ; trap '' EXIT RETURN INT ; exit  ; }
+mkdir -p ${CTname_DIR}
+cd ${CTname_DIR}
+
+
+command -v systemd-nspawn > /dev/null || apt-get install -y systemd-container
+command -v debootstrap > /dev/null || apt-get install -y debootstrap
+
+INFOC ; echo "Installing $OSversion into ${CTname}..." ; ENDC
+
+
+########################################################
+
+if [ $OSFLAVOUR == "debian" ]; then
+    #repo=http://snapshot.debian.org/archive/debian/20201215T204137Z
+    #reposecure=http://snapshot.debian.org/archive/debian/20201215T204137Z
+
+    repo=http://deb.debian.org/debian
+    # reposecure=http://security.debian.org
+    reposecure=http://deb.debian.org/debian-security
+    components=main,contrib,non-free
+
+
+    if [ $OSversion == testing ] ; then
+        apt_source="
+deb     ${repo} testing main contrib non-free
+# deb-src ${repo} testing main contrib non-free
+
+deb     ${repo} testing-updates main contrib non-free
+# deb-src ${repo} testing-updates main contrib non-free
+
+deb     ${reposecure} testing-security main contrib non-free
+# deb-src ${reposecure} testing-security main contrib non-free
+"
+    elif [ $OSversion == unstable ] ;then 
+        apt_source="
+#unstable  have no backport or security
+deb     ${repo} unstable main contrib non-free
+# deb-src ${repo} unstable main contrib non-free
+"
+    else
+        # Suite name for security updates changing with Debian 11 "bullseye"
+        # https://lists.debian.org/debian-devel-announce/2019/07/msg00004.html
+        # https://unix.stackexchange.com/questions/529009/debian-testing-upgrade-buster-to-bullseye-version-no-server-for-security
+        # over the last years we had people getting confused over <suite>-updates
+        # (recommended updates) and <suite>/updates (security updates).  Starting
+        # with Debian 11 "bullseye" we have therefore renamed the suite including
+        # the security updates to <suite>-security.
+
+        # An entry in sources.list should look like
+          # deb http://security.debian.org/debian-security bullseye-security main
+        
+        # For previous releases the name will not change.
+        
+        # antes era buster/updates ahora es bullseye-security
+        secu_suffix='-security'
+        [ $OSversion == buster ] && secu_suffix='/updates'
+        
+        apt_source="
+deb     ${repo} ${OSversion} main contrib non-free
+# deb-src ${repo} ${OSversion} main contrib non-free
+
+deb     ${repo} ${OSversion}-updates main contrib non-free
+# deb-src ${repo} ${OSversion}-updates main contrib non-free
+
+deb     ${repo} ${OSversion}-backports main contrib non-free
+# deb-src ${repo} ${OSversion}-backports main contrib non-free
+
+deb     ${reposecure} ${OSversion}${secu_suffix} main contrib non-free
+# deb-src ${reposecure} ${OSversion}${secu_suffix} main contrib non-free
+"
+
+    fi
+
+
+elif [ $OSFLAVOUR == "ubuntu" ]; then
+    repo=http://archive.ubuntu.com/ubuntu
+    # reposecure=http://security.ubuntu.com/ubuntu
+    reposecure=http://archive.ubuntu.com/ubuntu
+    components=main,restricted,universe,multiverse
+
+    apt_source="
+## universe multiverse is ENTIRELY UNSUPPORTED by the Ubuntu
+deb ${repo}  ${OSversion} main restricted universe multiverse
+deb ${repo}  ${OSversion}-updates main restricted universe multiverse
+deb ${repo}  ${OSversion}-backports main restricted universe multiverse
+deb ${reposecure} ${OSversion}-security main restricted universe multiverse
+
+# deb-src ${repo}  ${OSversion} main restricted universe multiverse
+# deb-src ${repo}  ${OSversion}-updates main restricted universe multiverse
+# deb-src ${repo}  ${OSversion}-backports main restricted universe multiverse
+# deb-src ${reposecure} ${OSversion}-security main restricted universe multiverse
+"
+
+fi
+
+
+
+########################################################
+INFOC ; echo "debootstrap $OSFLAVOUR $OSversion..." ; ENDC
+mkdir -p ${repository}/debootstrap_pkg/${OSFLAVOUR}_${OSversion}
+debootstrap --merged-usr --cache-dir ${repository}/debootstrap_pkg/${OSFLAVOUR}_${OSversion} --arch=amd64 --components=${components} --include=$common_packages $* $OSversion ${CTname_DIR} $repo
+
+
+########################################################
+# config login/pass
+########################################################
+INFOC ; echo "config login/pass" ; ENDC
+# Set root password
+chroot ${CTname_DIR} bash -c "echo 'root:${ROOTPASSWD}' | chpasswd"
+
+# bug: machinectl login gave error:incorrect password
+echo "pts/0" >> ${CTname_DIR}/etc/securetty
+# al usar machinectl en vez de nspawn se usa pts/1, asi ke hacemos eso tb
+echo "pts/1" >> ${CTname_DIR}/etc/securetty
+
+########################################################
+# autologin
+########################################################
+# Nspawn console
+# To configure auto-login for a systemd-nspawn container, override console-getty.service:
+mkdir ${CTname_DIR}/etc/systemd/system/console-getty.service.d
+cat <<'EOF' > ${CTname_DIR}/etc/systemd/system/console-getty.service.d/nspawnautologin.conf
+[Service]
+ExecStart=
+ExecStart=-/sbin/agetty --noclear --autologin root --keep-baud console 115200,38400,9600 $TERM
+EOF
+
+# If machinectl login my-container method is used to access the container, also add --autologin username to container-getty@.service template that manages pts/[0-9] pseudo ttys:
+mkdir ${CTname_DIR}/etc/systemd/system/container-getty@.service.d
+cat <<'EOF' > ${CTname_DIR}/etc/systemd/system/container-getty@.service.d/machinectlautologin.conf
+[Service]
+ExecStart=
+ExecStart=-/sbin/agetty --noclear --autologin root --keep-baud pts/%I 115200,38400,9600 $TERM
+EOF
+
+############################
+# locale
+############################
+INFOC ; echo "configure locale" ; ENDC
+
+chroot ${CTname_DIR} /bin/bash <<"EOF"
+
+apt-get update
+apt-get install -y locales
+
+test -f /etc/locale_ORG.gen || cp /etc/locale.gen /etc/locale_ORG.gen
+echo 'en_US.UTF-8 UTF-8' > /etc/locale.gen 
+
+locale-gen --purge 'en_US.UTF-8'
+update-locale 'LANG=en_US.UTF-8'
+dpkg-reconfigure --frontend noninteractive locales
+EOF
+
+############################
+# network
+############################
+INFOC ; echo "configure network" ; ENDC
+TODOOOOOOO(){
+test -f ${CTname_DIR}/etc/network/interfaces && cp ${CTname_DIR}/etc/network/interfaces ${CTname_DIR}/etc/network/interfacesORG
+cat <<EOF > ${CTname_DIR}/etc/network/interfaces
+auto lo
+iface lo inet loopback
+
+auto ${ETH_DEVICE}
+iface ${ETH_DEVICE} inet dhcp
+# ubuntu18 de debootstrap al configurar /etc/network/interfaces with dhcp it will run dhclient and leave it open listening on port 68 on 0.0.0.0
+# pero no encontre nadie haciendolo pero funciona biennn
+up pkill dhclient || true
+EOF
+}
+
+
+
+
+
+############################
+# hosts & hotname
+############################
+INFOC ; echo "configure hosts & hostname" ; ENDC
+
+echo $HOSTNAME > ${CTname_DIR}/etc/hostname
+
+cat <<EOF > ${CTname_DIR}/etc/hosts
+127.0.0.1       localhost
+127.0.1.1       $HOSTNAME
+# The following lines are desirable for IPv6 capable hosts
+::1     localhost ip6-localhost ip6-loopback
+ff02::1 ip6-allnodes
+ff02::2 ip6-allrouters
+EOF
+
+############################
+# dns
+############################
+INFOC ; echo "configure dns" ; ENDC
+test -f ${CTname_DIR}/etc/resolv.conf && cp -a ${CTname_DIR}/etc/resolv.conf ${CTname_DIR}/etc/resolv.confORG
+
+chroot ${CTname_DIR} systemctl disable systemd-resolved
+chroot ${CTname_DIR} rm /etc/resolv.conf
+
+echo '
+nameserver 8.8.8.8
+nameserver 8.8.4.4
+nameserver 1.1.1.1
+ ' > ${CTname_DIR}/etc/resolv.conf
+
+
+############################
+# apt source list
+############################
+INFOC ; echo "configure apt source list" ; ENDC
+test -f ${CTname_DIR}/etc/apt/sources.list && cp ${CTname_DIR}/etc/apt/sources.list ${CTname_DIR}/etc/apt/sources.listORG
+echo "${apt_source}" > ${CTname_DIR}/etc/apt/sources.list
+
+
+############################
+# configure bash
+############################
+INFOC ; echo "configure bash" ; ENDC
+# history
+cat <<'EOF' > ${CTname_DIR}/etc/profile.d/badr_bash_profile.sh
+if [ -n "${BASH_VERSION-}" -a -n "${PS1-}" ]; then
+    #anadido por badr
+    alias grep='grep --color'
+    alias ls='ls --color=auto'
+
+    export HISTCONTROL=ignoreboth
+
+    # https://stackoverflow.com/questions/9457233/unlimited-bash-history
+    # Eternal bash history.
+    # ---------------------
+    # Undocumented feature which sets the size to "unlimited".
+    # http://stackoverflow.com/questions/9457233/unlimited-bash-history
+    # esto tiene un bug , si el fichero llega a 2gb bash volvera muy lentooo
+    # export HISTFILESIZE=
+    # export HISTSIZE=
+    # or
+    export HISTTIMEFORMAT="[%F %T] "
+    export HISTFILESIZE=9999
+    export HISTSIZE=1000
+
+    # Change the file location because certain bash sessions truncate .bash_history file upon close.
+    # http://superuser.com/questions/575479/bash-history-truncated-to-500-lines-on-each-login
+    export HISTFILE=~/.bash_eternal_history
+    # Force prompt to write history after every command.
+    # http://superuser.com/questions/20900/bash-history-loss
+    #PROMPT_COMMAND="history -a; $PROMPT_COMMAND"
+
+fi
+EOF
+
+
+
+########################################################
+# PS1
+# https://unix.stackexchange.com/questions/329581/why-is-debians-default-bash-shell-colourless
+# http://www.linuxfromscratch.org/blfs/view/svn/postlfs/profile.html
+
+# al crear un nuevo user a new .bashrc will be created wich contain PS1 and it will override this PS1 bellow (i can see what bash read with bash -lx or bash -x)
+cat <<'EOF' >> ${CTname_DIR}/etc/skel/.bashrc
+
+#badr_PS1
+if [ ! -z "$PS1" ]; then
+    NORMAL="\[\e[0m\]"
+    RED="\[\e[1;31m\]"
+    GREEN="\[\e[1;32m\]"
+    if [[ $EUID == 0 ]] ; then
+      PS1="$RED\u@\h [ $NORMAL\w$RED ]# $NORMAL"
+    else
+      PS1="$GREEN\u@\h [ $NORMAL\w$GREEN ]\$ $NORMAL"
+    fi
+
+    unset RED GREEN NORMAL
+fi
+EOF
+
+# users already created will not have the content of /etc/skel/.bashrc so the following will force root user for example to have my PS1
+cat <<'EOF' > ${CTname_DIR}/etc/profile.d/badr_PS1.sh
+#badr_PS1
+if [ ! -z "$PS1" ]; then
+    NORMAL="\[\e[0m\]"
+    RED="\[\e[1;31m\]"
+    GREEN="\[\e[1;32m\]"
+    if [[ $EUID == 0 ]] ; then
+      PS1="$RED\u@\h [ $NORMAL\w$RED ]# $NORMAL"
+    else
+      PS1="$GREEN\u@\h [ $NORMAL\w$GREEN ]\$ $NORMAL"
+    fi
+
+    unset RED GREEN NORMAL
+fi
+EOF
+
+
+# en ubuntu instalado por debootstrap viene con /root/.bashrc configurado con su PS1, asi ke vamos a anadir el PS1 a ello tb
+cat <<'EOF' >> ${CTname_DIR}/root/.bashrc
+
+
+#badr_PS1
+if [ ! -z "$PS1" ]; then
+    NORMAL="\[\e[0m\]"
+    RED="\[\e[1;31m\]"
+    GREEN="\[\e[1;32m\]"
+    if [[ $EUID == 0 ]] ; then
+      PS1="$RED\u@\h [ $NORMAL\w$RED ]# $NORMAL"
+    else
+      PS1="$GREEN\u@\h [ $NORMAL\w$GREEN ]\$ $NORMAL"
+    fi
+
+    unset RED GREEN NORMAL
+fi
+EOF
+
+########################################################
+# fzf ctrl-r alternative
+fzf_met1(){
+git clone --depth 1 https://github.com/junegunn/fzf.git ${CTname_DIR}/usr/local/lib/fzf
+# chroot ${CTname_DIR} /usr/local/lib/fzf/install --all
+chroot ${CTname_DIR} /usr/local/lib/fzf/install --bin --no-key-bindings --no-completion --no-update-rc --no-bash --no-zsh --no-fish
+
+cat <<'EOF' > ${CTname_DIR}/etc/profile.d/badr_fzf.sh
+
+# to uninstall do
+# /usr/local/lib/fzf/uninstall
+
+# Setup fzf
+# ---------
+if [[ ! "$PATH" == */usr/local/lib/fzf/bin* ]]; then
+  export PATH="${PATH:+${PATH}:}/usr/local/lib/fzf/bin"
+fi
+
+# Auto-completion
+# ---------------
+[[ $- == *i* ]] && source "/usr/local/lib/fzf/shell/completion.bash" 2> /dev/null
+
+# Key bindings
+# ------------
+source "/usr/local/lib/fzf/shell/key-bindings.bash"
+EOF
+
+}
+fzf_met1
+
+
+
+fzf_met2(){
+    # this uses apt install but ubuntu 16 y 18 no tiene fzf
+if [ "$OSversion" != "xenial" -a "$OSversion" != "bionic" ] ; then
+
+cat <<'EOF' > ${CTname_DIR}/etc/profile.d/badr_fzf.sh
+# ctrl-r alternative but without run it so i can edit it before run it :) alhamdolillah
+if [ -n "${BASH_VERSION-}" -a -n "${PS1-}" ]; then
+
+    bind '"\C-r": "\C-x1\e^\er"'
+    bind -x '"\C-x1": __fzf_history';
+
+    __fzf_history (){
+        __ehc $(history | fzf --tac --tiebreak=index | perl -ne 'm/^\s*([0-9]+)/ and print "!$1"')
+    }
+
+    __ehc(){
+        if [[ -n $1 ]] ; then
+            bind '"\er": redraw-current-line'
+            bind '"\e^": magic-space'
+           READLINE_LINE=${READLINE_LINE:+${READLINE_LINE:0:READLINE_POINT}}${1}${READLINE_LINE:+${READLINE_LINE:READLINE_POINT}}
+            READLINE_POINT=$(( READLINE_POINT + ${#1} ))
+        else
+            bind '"\er":'
+            bind '"\e^":'
+        fi
+    }
+
+    # show file content preview
+    alias ff="fzf --preview 'cat {}'"
+
+fi
+EOF
+
+fi
+}
+
+
+########################################################
+# only lnav 0.9 have themes; i need a white theme
+chroot ${CTname_DIR} /bin/bash <<"EOF"
+wget https://github.com/tstack/lnav/releases/download/v0.9.0/lnav_0.9.0_amd64.deb
+dpkg -i lnav_0.9.0_amd64.deb
+
+echo h | lnav -n -c ':config /ui/default-colors true'
+EOF
+
+# esto blokea el script ,funciona in interactive console solo
+# timeout 1 lnav -c ':config /ui/default-colors true'
+
+
+
+########################################################
+# creat alias wrapper for machinectl/nspawn to simplify interactive use
+
+# no lo usare ya ke uso ahora mm
+# echo '
+# if [ -n "${BASH_VERSION-}" -a -n "${PS1-}" ] ; then
+    # badr nspawn alias
+    # alias m=machinectl
+    # alias mi="machinectl list-images"
+# fi
+# ' > /etc/profile.d/badr_nspawn.sh
+
+
+########################################################
+# config
+########################################################
+INFOC ; echo "configure machinectl" ; ENDC
+# register my container with machinectl
+ln -s ${CTname_DIR} /var/lib/machines/${CTname}
+
+
+########################################################
+# create service override file
+########################################################
+mkdir ${CTname_DIR}/_MyMMfiles
+
+# save service override file inside container dir so i can use it when i use mm clone for example
+# the defaut here is to run the container with full privilges and host network
+cat <<'EOF' > ${CTname_DIR}/_MyMMfiles/nspawn_override_service.conf
+
+[Service]
+
+###===============================================
+### Raise maximum number of open file descriptors
+###===============================================
+###LimitNOFILE=infinity
+MaxNoFile="--rlimit=RLIMIT_NOFILE=99999:200000"
+
+
+###===============================================
+###net config
+###===============================================
+###_________________
+###host networking
+###_________________
+###to use Host network which have internet natively just comment all the Environment=network bellow because nspawn will use Host network when we do not use any network flag
+
+###_________________
+###private networking
+###_________________
+###this is the default when using machinectl but internet do not work without a dhcp server or iptables, i will never use this because i do not know yet how to make it to have internet yet
+#Environment="networkVAR=--network-veth"
+
+###_________________
+###NAT networking using a private bridge
+###_________________
+###this creat a private network where i can set a static private ip (NAT) but need iptables to make containers talk to outside
+#Environment="networkVAR=--network-bridge=mynspawnbr0"
+
+###_________________
+###bridge networking
+###_________________
+###this creatse a bridge which i can use with my second ip in hetzner
+#Environment="networkVAR=--network-bridge=vmbr0"
+
+
+### NB: ahora usa $networkVAR y no uses ${networkVAR}; porke si no uso networkVAR (como en el caso de ###host networking), entonces $networkVAR dara un vacio mientras ${networkVAR} dara "" , y "" hara problemas si ${networkVAR} esta en el medio del comando a ejecutar pk se considerara como parte del commando y el servicio fallara al iniciarlo. pero por si acaso quiero usar ${networkVAR} entonces deja la al final en ExecStart line  sino me dara error al dejar la variable vacia.
+###la difrencia entre $networkVAR y ${networkVAR}  es ke la primera si tiene espacio sera parseada y considerada como dos argumentos, mientra la segunda si tiene espacio no se hara parsing y se considerar como un argumento.
+
+
+
+
+###===============================================
+###unprivileged or privileged
+###===============================================
+#to change between privileged and unprivileged just uncomment the one I want (uncomment only what have one # not the ones with 3 ###)
+
+# esto es importante , hay ke eliminar el commando ke se usa por defecto sino ExecStart se ejecutara dos veces:
+ExecStart=
+
+
+########### NB: lee esto
+###cuidado: do not forget this: do this when I run a container as unprivileged (with -U) then I run it as privileged  (without -U) then I want to run it again as unprivileged (with -U) , so i need to do this before runing the container with -U again
+###update: tb al ejecutar el container without -U after using -U I have to use this or i will get a message about sudo do not have suid blablabla for example.
+###asi ke cada vez ke cambio entre comandos ke usan -U y comandos ke no usan -U hay ke usar esto
+#ExecStart=/usr/bin/systemd-nspawn --quiet --keep-unit --boot --link-journal=try-guest --settings=override --machine=%i --private-users=0 --private-users-chown $networkVAR $MaxNoFile
+
+
+###_________________
+###unprivileged 
+###_________________
+###this is the default when i use machinectl to start the containers
+#ExecStart=/usr/bin/systemd-nspawn --quiet --keep-unit --boot --link-journal=try-guest --settings=override --machine=%i -U $networkVAR $MaxNoFile
+
+
+###_________________
+###normal privileged
+###_________________
+#improve nspawn from 3M to 15M ops/s (this is relative to your computer) 
+Environment=SYSTEMD_SECCOMP=0
+ExecStart=/usr/bin/systemd-nspawn --quiet --keep-unit --boot --link-journal=try-guest --settings=override --machine=%i --private-users=false --capability=all $networkVAR $MaxNoFile
+
+#no olvides disable spectre/metldown mitigations, it improves ops from 15M to 24M ops/s
+
+#los siguentes no anaden mas performance sino mas opciones solo, usalos solo si algun programa no funciona dentro de nspawn
+
+###_________________
+###super super privileged
+###_________________
+#this is too much i think, I need this only if I want docker or perf report inside nspawn
+# disable seccomp, this will improve performance a lot, it need systemd v247
+#Environment=SYSTEMD_SECCOMP=0
+
+# this variable will allow to run docker inside nspawn, but need --bind=/sys/fs/cgroup too. remember that --bind=/sys/fs/cgroup  cannot be used without SYSTEMD_NSPAWN_USE_CGNS=0
+#Environment=SYSTEMD_NSPAWN_USE_CGNS=0
+
+#this is needed for example for perf report to use dbg symbols of /proc/kallsyms see nspawn disables /proc/kallsyms
+#Environment=SYSTEMD_NSPAWN_API_VFS_WRITABLE=yes
+
+#ExecStart=/usr/bin/systemd-nspawn --quiet --keep-unit --boot --link-journal=try-guest --settings=override --machine=%i --private-users=false --capability=all --bind=/sys/fs/cgroup $networkVAR $MaxNoFile
+
+###_________________
+###super super super privileged
+###_________________
+#allow to create all devices in cat /proc/devices
+#see allow device creation in nspawn
+#Environment=SYSTEMD_SECCOMP=0
+#Environment=SYSTEMD_NSPAWN_USE_CGNS=0
+#Environment=SYSTEMD_NSPAWN_API_VFS_WRITABLE=yes
+
+#ExecStart=/usr/bin/systemd-nspawn --quiet --keep-unit --boot --link-journal=try-guest --settings=override --machine=%i --private-users=false --capability=all --bind=/sys/fs/cgroup --property=DeviceAllow="block-* rwm" --property=DeviceAllow="char-* rwm" $networkVAR $MaxNoFile
+
+
+#I can even gave it more privileges, see in onenote:
+#*Super* Privileged Container Concept
+
+
+###===============================================
+###end of priv and unpriv container
+###===============================================
+
+EOF
+
+# copy service override file to /etc/systemd/system 
+mkdir /etc/systemd/system/systemd-nspawn@${CTname}.service.d
+
+cp ${CTname_DIR}/_MyMMfiles/nspawn_override_service.conf /etc/systemd/system/systemd-nspawn@${CTname}.service.d/nspawn_override_service.conf
+
+systemctl daemon-reload
+
+
+########################################################
+# save a copy of this script and nspawn version and CT name
+########################################################
+# crea una copia de este script junto con la imagen por si acaso la necesito para saber como he creado la imagen
+declare -f _create_container > ${CTname_DIR}/_MyMMfiles/_script_used_to_create_container.sh
+echo "echo 'usage as script file: 
+chmod +x _script_used_to_create_container.sh
+source _script_used_to_create_container.sh ; _create_container'" >> ${CTname_DIR}/_MyMMfiles/_script_used_to_create_container.sh
+
+# save nspawn version used:
+echo ___systemd-nspawn version____________________ > ${CTname_DIR}/_MyMMfiles/_nspawn_versions.txt
+systemd-nspawn --version >> ${CTname_DIR}/_MyMMfiles/_nspawn_versions.txt
+echo ___systemd-nspawn dependencies______________________ >> ${CTname_DIR}/_MyMMfiles/_nspawn_versions.txt
+apt show systemd-container >> ${CTname_DIR}/_MyMMfiles/_nspawn_versions.txt
+
+# save CT name
+echo 'this file contain all the container names used before cloning and renaming the container' >> ${CTname_DIR}/_MyMMfiles/_container_names.txt
+echo "name:${CTname} ___ date:$(date)" >> ${CTname_DIR}/_MyMMfiles/_container_names.txt
+
+########################################################################################
+# take snapshot. let this the last one
+########################################################################################
+# best practice
+# best practice is to create a copy of this container before doing more changes , so i can clone this clean container whenever i want to do testing...etc
+cp -a ${CTname_DIR} ${CTname_DIR}-clean
+# i do not need to register the clean version i can use mm to do it , it s better because it will create the service override ...Etc
+# ln -s ${CTname_DIR}-clean /var/lib/machines/${CTname}-clean
+
+
+########################################################
+ 
+INFO2C ; echo "SUCCESS!" ; ENDC
+
+ 
+ 
+INFO3C
+echo "
+
+
+===run with:============================================================
+mm run ${CTname}
+mm ls
+mm lsa
+
+"
+ENDC
+
+nspawn_finished=finished
+
+
+
+# fin del subshell
+)
+
+
+}
+
+
+
+
+ # create a quick guide with the command I need to execute in the shell
+ echo "
+
+ 
+ 
+ 
+======================================================================================
+usage:
+_create_container   imagename                Hostname (a..Z y 0..9 y -)  OS    OS release
+_create_container   buster${datenowForHostname}     buster${datenowForHostname}     debian   buster
+_create_container   bullseye${datenowForHostname}   bullseye${datenowForHostname}   debian   bullseye
+_create_container   testing${datenowForHostname}    testing${datenowForHostname}    debian   testing
+_create_container   unstable${datenowForHostname}   unstable${datenowForHostname}   debian   unstable
+
+_create_container   xenial${datenowForHostname}     xenial${datenowForHostname}     ubuntu   xenial
+_create_container   bionic${datenowForHostname}     bionic${datenowForHostname}     ubuntu   bionic
+_create_container   focal${datenowForHostname}      focal${datenowForHostname}      ubuntu   focal
+
+"
+
