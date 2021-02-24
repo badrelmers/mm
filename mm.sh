@@ -91,7 +91,6 @@ _common_functions(){
 _common_functions
 export -f _common_functions
 
-ssssss
 ___get_ct_repo(){
     # puesto ke uso multiple repositories , necesito saber en ke repo esta el container
     # usage: ___get_ct_repo VM
