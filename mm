@@ -64,7 +64,7 @@ _common_functions(){
             # echo LINENO=$2
 
             ENDC
-            read -p 'Press enter to exit the trap'
+            read -p 'Press enter to exit the mm trap'
             # read -p 'Press enter to exit the trap' < /dev/tty
             
             # tty=$(readlink /proc/$$/fd/2)
