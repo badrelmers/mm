@@ -12,7 +12,7 @@ bash ./mm/install.sh
 # help
 ```bash
 mm help
-mmuild help
+mmbuild help
 ```
 
 # example 1:
