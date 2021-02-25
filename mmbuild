@@ -119,23 +119,71 @@ common_packages="haveged,dbus,apt-transport-https,wget,curl,locales,tzdata,man-d
 # ubuntu 18 instala netplan pero si instalo ifupdown se usara ifupdown al configurar /etc/network/interfaces
 
 ########################################################
+
+repochoice(){
+selectrepo(){
+    echo "The following repositories were found in the config file /etc/_mm.conf; select one:"
+    # this is to prevent problems with folders with space in path
+    local IFSold="$IFS"
+    local IFS=$'\n'
+    mmrepos=$(cat /etc/_mm.conf)
+
+    # set the prompt used by select, replacing "#?"
+    PS3="Use a number to select a folder or select 'exit' to cancel: "
+
+    # allow the user to choose a file
+    select myyrepo in $mmrepos exit ; do
+        local IFS="$IFSold"
+        # leave the loop if the user says 'exit'
+        if [[ "$REPLY" == exit ]]; then break; fi
+
+        # complain if no file was selected, and loop to ask again
+        if [[ "$myyrepo" == "" ]]
+        then
+            echo "'$REPLY' is not a valid number"
+            continue
+        fi
+
+        # ===begin handling files aki=================
+        # now we can use the selected file
+        echo "you selected: $myyrepo"
+        myrepository="$myyrepo"
+        
+        # ===end handling files=======================
+        
+        # it'll ask for another unless we leave the loop
+        break
+    done
+}
+
+
+# __________________
+
 tput bold
 tput setaf 2
 
 PS3='Please enter your choice: '
 options=(
+           "install to a defined repository in /etc/_mm.conf"
            "install to actual dir: $PWD"
-           "install to a defined repository: ${repository:-}"
         )
 
 select opt in "${options[@]}" ;do
     tput sgr0
     case $opt in
-        *actual*) repository="$PWD" ; break ;;
-        *repository*)
+        *"install to actual"*) repository="$PWD" ; break ;;
+        *"install to a defined repository"*)
+            selectrepo
+            repository="${myrepository}"
             if [ -z "${repository:-}" ]; then
-                read -p 'gave me repo full path or run me with a defined variable ( export repository=/fullpath ): ' repository
-                repository="${repository}"
+                # read -p 'gave me repo full path or run me with a defined variable ( export repository=/fullpath ): ' repository
+                # repository="${repository}"
+                WARNC ; echo 'no repository defined. create one and add it to /etc/_mm.conf ...exiting' ; ENDC
+                exit
+            fi
+            if [ ! -d "${repository:-}" ]; then
+                WARNC ; echo 'this repository does not exit. create it first with mkdir ...exiting' ; ENDC
+                exit
             fi
             break ;;
         *)  echo "invalid option $REPLY"
@@ -144,7 +192,8 @@ select opt in "${options[@]}" ;do
     esac
 done
 
-
+}
+repochoice
 
 ########################################################
 # main
