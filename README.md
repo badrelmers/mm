@@ -17,7 +17,9 @@ mmuild help
 
 # example 1:
 ```bash
-# create a folder which will be used as the repository for nspawn containers and add it to /etc/_mm.conf so it can be controlled by mm (you can create multiple folders in diferent disks to be as repository)
+# create a folder which will be used as the repository for nspawn containers and 
+# add it to /etc/_mm.conf so it can be controlled by mm (you can create multiple
+# folders in diferent disks to be as repository)
 repository=/media/ssd2/_MyNspawnStore
 grep -Fq "${repository}" /etc/_mm.conf || { echo "${repository}" | sudo tee -a /etc/_mm.conf ; }
 
