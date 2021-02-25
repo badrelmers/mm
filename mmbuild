@@ -176,8 +176,6 @@ select opt in "${options[@]}" ;do
             selectrepo
             repository="${myrepository}"
             if [ -z "${repository:-}" ]; then
-                # read -p 'gave me repo full path or run me with a defined variable ( export repository=/fullpath ): ' repository
-                # repository="${repository}"
                 WARNC ; echo 'no repository defined. create one and add it to /etc/_mm.conf ...exiting' ; ENDC
                 exit
             fi
@@ -244,13 +242,13 @@ trap _clean EXIT INT
 nspawn_finished=NOTfinished
 
 
-# set -x
-
+# TODO: this is not needed i already did it above , i can delete it
 test -d "${repository}" || { ERRORC ; echo "repository of nspawn containers was not created. create it manually first. you told me to use : ${repository}" ; ENDC ; exit ; }
+
 cd "${repository}"
 
 ########################################################
-# sometimes I will want to install the vm in another disk so:
+# sometimes I will want to install the container in another disk so:
 # I will create a config file where I will save the repositories I use so i can control them all with mm
 grep -Fq "${repository}" /etc/_mm.conf || { echo "${repository}" >> /etc/_mm.conf ; }
 
@@ -261,6 +259,7 @@ mkdir -p _MyMM/${CTname}
 cd _MyMM/${CTname}
 
 
+# TODO: if i install systemd from backport then i have to use systemd-container of backport too, so here I have to detect if systemd was installed from backport or not
 command -v systemd-nspawn > /dev/null || apt-get install -y systemd-container
 command -v debootstrap > /dev/null || apt-get install -y debootstrap
 
@@ -794,7 +793,7 @@ ExecStart=/usr/bin/systemd-nspawn --quiet --keep-unit --boot --link-journal=try-
 ###end of priv and unpriv container
 ###===============================================
 
-#sometimes i need to reload systemctl to detect my changes to this file
+#sometimes i need to reload systemctl to detect my changes to this file so use:
 # systemctl daemon-reload
 EOF
 
