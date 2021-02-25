@@ -9,12 +9,6 @@ git clone https://github.com/badrelmers/mm
 bash ./mm/install.sh
 ```
 
-# help
-```bash
-mm help
-mmbuild help
-```
-
 # How it works
 all containers need to be saved somewhere, so I choosed to create a config file `/etc/_mm.conf` where we will save the path to the folders we want to use as a repository for the containers, I could have used the default machinectl folder `/var/lib/machines` but I prefer my method because like this I can format any time without problems, because `mm` will create a symlink from my defined repository to `/var/lib/machines`, like this you do not have to take care of moving the containers before formating the disks. another benefit is that we can use diferent disks to save the containers.
 that is why I created the command `mm register ContainerName` which will create a symlink of the container inside `/var/lib/machines`
@@ -56,7 +50,13 @@ mm stop mybustercontainer
 mm delete mybustercontainer
 ```
 
-# mm help
+# help
+```bash
+mm help
+mmbuild help
+```
+
+## mm help
 ```
     run NAME                Start container as a service and connect to it
     start NAMEs...          Start container as a service (start)
@@ -93,6 +93,21 @@ mm delete mybustercontainer
     correct NAME            Correct effect of -U (uses --private-users=0 --private-users-chown)
     
     help,h                  Show help
+```
+
+## mmbuild help
+```
+mmbuild   imagename    Hostname(aZ09-)    OS    OS release    pass    [optional debootstrap args]
+
+examples:
+mmbuild   buster20210225175246     buster20210225175246     debian   buster       bbbbbbnn
+mmbuild   bullseye20210225175246   bullseye20210225175246   debian   bullseye     bbbbbbnn
+mmbuild   testing20210225175246    testing20210225175246    debian   testing      bbbbbbnn
+mmbuild   unstable20210225175246   unstable20210225175246   debian   unstable     bbbbbbnn
+
+mmbuild   xenial20210225175246     xenial20210225175246     ubuntu   xenial       bbbbbbnn
+mmbuild   bionic20210225175246     bionic20210225175246     ubuntu   bionic       bbbbbbnn
+mmbuild   focal20210225175246      focal20210225175246      ubuntu   focal        bbbbbbnn
 ```
 
 # note:
