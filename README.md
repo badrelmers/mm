@@ -15,6 +15,10 @@ mm help
 mmbuild help
 ```
 
+# How it works
+all containers need to be saved somewhere, so I choosed to create a config file `/etc/_mm.conf` where we will save the path to the folders we want to use as a repository for the containers, I could have used the default machinectl folder `/var/lib/machines` but I prefer my method because like this I can format any time without problems, because `mm` will create a symlink from my defined repository to `/var/lib/machines`, like this you do not have to take care of moving the containers before formating the disks. another benefit is that we can use diferent disks to save the containers.
+that is why I created the command `mm register ContainerName` which will create a symlink of the container inside `/var/lib/machines`
+
 # example 1:
 ```bash
 # create a folder which will be used as the repository for nspawn containers and 
@@ -41,12 +45,55 @@ mm lsa
 
 # example 2:
 ```bash
-# clone, rename and register a container
+# clone, rename, register a container,  then delete it
 mm clone buster20210225124857
 mm rename buster20210225124857-clone...  mybustercontainer
 mm register mybustercontainer
 mm run mybustercontainer
+
+# delete it
+mm stop mybustercontainer
+mm delete mybustercontainer
+```
+
+# mm help
+```
+    run NAME                Start container as a service and connect to it
+    start NAMEs...          Start container as a service (start)
+    sh NAME                 Invoke a shell in a container (shell)
+    exec NAME "command"     Run a command inside container
+    reboot NAMEs...         Reboot one or more containers (reboot)
+    stop NAMEs...           Power off one or more containers (poweroff)
+    kill NAMEs...           Terminate one or more VMs/containers (terminate)
+  
+    status NAMEs...         Show VM/container details (status)
+    info [NAMEs...]         Show properties of one or more VMs/containers (show)
+    edit NAME               Edit my container service override file
+    editrepo                Edit /etc/_mm.conf repositories
+    
+    enable NAMEs...         Enable automatic container start at boot (enable)
+    disable NAMEs...        Disable automatic container start at boot (disable)
+    listautorun             List all autorun services of containers
+    
+  Image Commands:
+    ls                      List registred containers in /var/lib/machines (list-images)
+    lsa                     list all containers in all repositories of /etc/_mm.conf
+    lsaq                    list all containers in all repositories of /etc/_mm.conf (quicker, no dir space is showen)
+    register NAMEs...       Create a symlink of the container in /var/lib/machines & a clean service override
+    unregister NAMEs...     delete symlink of the container in /var/lib/machines & DELETE its service override/autorun too
+    iinfo [NAMEs...]        Show properties of image (show-image)
+    istatus [NAMEs...]      Show image details (image-status)
+    
+    clone NAME              Clone a CT (CT dir & symlink, service override if they exist , but not autorun file; & hostname)
+    rename NAME NewName     Rename a CT (CT dir & symlink, service override and autorun files if they exist; & hostname)
+    
+    delete NAME             Delete CT completly (CT dir, symlink, service override and autorun files)
+    
+    getpath NAME            print container path
+    correct NAME            Correct effect of -U (uses --private-users=0 --private-users-chown)
+    
+    help,h                  Show help
 ```
 
 # note:
-it works fine but need some cleaning. for example comments are a mix of spanish english :0
+it works fine and I use it for my daily use, but need some cleaning. for example comments inside code are a mix of spanish english.
