@@ -930,16 +930,16 @@ _help(){
     echo "
 ======================================================================================
 usage:
-mmbuild   imagename: Hostname (aZ09-)         OS       OS release   pass   [optional debootstrap args]
+mmbuild   imagename (as Hostname az09-)   OS       OS release   pass   [optional debootstrap args]
 
-mmbuild   buster${datenowForHostname}     debian   buster       bbbbbbnn
-mmbuild   bullseye${datenowForHostname}   debian   bullseye     bbbbbbnn
-mmbuild   testing${datenowForHostname}    debian   testing      bbbbbbnn
-mmbuild   unstable${datenowForHostname}   debian   unstable     bbbbbbnn
+mmbuild   buster${datenowForHostname}            debian   buster       bbbbbbnn
+mmbuild   bullseye${datenowForHostname}          debian   bullseye     bbbbbbnn
+mmbuild   testing${datenowForHostname}           debian   testing      bbbbbbnn
+mmbuild   unstable${datenowForHostname}          debian   unstable     bbbbbbnn
 
-mmbuild   xenial${datenowForHostname}     ubuntu   xenial       bbbbbbnn
-mmbuild   bionic${datenowForHostname}     ubuntu   bionic       bbbbbbnn
-mmbuild   focal${datenowForHostname}      ubuntu   focal        bbbbbbnn
+mmbuild   xenial${datenowForHostname}            ubuntu   xenial       bbbbbbnn
+mmbuild   bionic${datenowForHostname}            ubuntu   bionic       bbbbbbnn
+mmbuild   focal${datenowForHostname}             ubuntu   focal        bbbbbbnn
 
 "
 }
