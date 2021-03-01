@@ -261,29 +261,30 @@ repochoice
 # main
 ########################################################
 _clean() {
-    HIDEC ; echo "begin cleaning..." ; ENDC
         
     # si nspawn_finished no es igual finished  borramos la imagen 
-    [ "${nspawn_finished:-}" = "NOTfinished" ] && { 
+    if [ "${nspawn_finished:-}" = "NOTfinished" ] ; then
+        HIDEC ; echo "begin cleaning..." ; ENDC
         echo "nspawn creation not finished so let s remove the folder: ${CTname_DIR:-unkownennn}"
         test -d ${CTname_DIR:-unkownennn} && rm -rf ${CTname_DIR:-unkownennn}
         test -d ${CTname_DIR:-unkownennn}-clean && rm -rf ${CTname_DIR:-unkownennn}-clean
         test -f /var/lib/machines/${CTname:-unkownennn} && rm /var/lib/machines/${CTname:-unkownennn}
         test -f /var/lib/machines/${CTname:-unkownennn}-clean && rm /var/lib/machines/${CTname:-unkownennn}-clean
-    }
-    
-    # disable trap and fail on errors sino me saldra el bash on errors
-    # set +euo pipefail 
-    # set +E
-    # trap - ERR EXIT RETURN INT
-    
-    # esta linea es importante sino se ejecuta el trap ERR si la linea de arriba da exit 1
-    echo "end cleaning..."
-    exit
+        
+        
+        # disable trap and fail on errors sino me saldra el bash on errors
+        # set +euo pipefail 
+        # set +E
+        # trap - ERR EXIT RETURN INT
+        
+        # esta linea es importante sino se ejecuta el trap ERR si la linea de arriba da exit 1
+        echo "end cleaning..."
+        exit 1
+    fi
 }
 
 
-# this will run always, EXIT es para cuando este script como script file, y RETURN es para cuando ejecuto la function directamente desde un shell
+# this will run always, EXIT es para cuando este script se ejecuta como script file, y RETURN es para cuando ejecuto la function directamente desde un shell
 # trap _clean EXIT RETURN INT
 trap _clean EXIT INT
 
