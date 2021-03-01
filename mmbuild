@@ -201,7 +201,7 @@ selectrepo(){
     select myyrepo in $mmrepos exit ; do
         local IFS="$IFSold"
         # leave the loop if the user says 'exit'
-        if [[ "$REPLY" == exit ]]; then exit; fi
+        if [[ "$REPLY" == exit ]]; then exit 223; fi
 
         # complain if no file was selected, and loop to ask again
         if [[ "$myyrepo" == "" ]]
@@ -239,7 +239,7 @@ select opt in "${options[@]}" ;do
     case $opt in
         *"install to actual"*) repository="$PWD" ; break ;;
         *"install to a defined repository"*)
-            selectrepo
+            selectrepo || exit 223
             repository="${myrepository}"
             if [ -z "${repository:-}" ]; then
                 WARNC ; echo 'no repository defined. create one and add it to /etc/_mm.conf ...exiting' ; ENDC
