@@ -304,7 +304,8 @@ _clone_ct_auto(){
     export datenowForHostname=$(date +%Y%m%d%H%M%S)
     
     # validate newName to conform hostname rules
-    ___validate_hostname "${1}-clone${datenowForHostname}" || { echo I attempted to auto create this name: ${1}-clone${datenowForHostname} ; return 223 ; }
+    echo "name given automatically is: ${1}-clone${datenowForHostname}"
+    ___validate_hostname "${1}-clone${datenowForHostname}"
     
     
     # clone and rename CT
