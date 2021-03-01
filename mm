@@ -110,16 +110,16 @@ ___validate_hostname(){
         # /etc/hostname
         # The file should contain a single newline-terminated hostname string. Comments (lines starting with a "#") are ignored. The hostname should be composed of up to 64 7-bit ASCII lower-case alphanumeric characters or hyphens forming a valid DNS domain name. It is recommended that this name contains only a single label, i.e. without any dots. Invalid characters will be filtered out in an attempt to make the name valid, but obviously it is recommended to use a valid name and not rely on this filtering.
         
-    [[ "$1" =~ ^- ]] && { WARNC ; echo 'hostname should not begin with -' ; ENDC ; exit ; }
+    [[ "$1" =~ ^- ]] && { WARNC ; echo 'name should not begin with -' ; ENDC ; exit ; }
     
-    [[ "$1" =~ -$ ]] && { WARNC ; echo 'hostname should not end with -' ; ENDC ; exit ; }
+    [[ "$1" =~ -$ ]] && { WARNC ; echo 'name should not end with -' ; ENDC ; exit ; }
 
     # --+ match succesive -
-    [[ "$1" =~ --+ ]] && { WARNC ; echo 'hostname should not contain succesive repeated -' ; ENDC ; exit ; }
+    [[ "$1" =~ --+ ]] && { WARNC ; echo 'name should not contain succesive repeated -' ; ENDC ; exit ; }
     
-    [[ ${#1} -gt 63 ]] && { WARNC ; echo 'hostname should not contain more than 63 char' ; ENDC ; exit ; }
+    [[ ${#1} -gt 63 ]] && { WARNC ; echo 'name should not contain more than 63 char' ; ENDC ; exit ; }
     
-    [[ "$1" =~ ^[a-z0-9-]+$ ]] || { WARNC ; echo 'hostname should contain only a-z (no uppercase) 0-9 or - chars' ; ENDC ; exit ; }
+    [[ "$1" =~ ^[a-z0-9-]+$ ]] || { WARNC ; echo 'name should contain only a-z (no uppercase) 0-9 or - chars' ; ENDC ; exit ; }
     
     # _____________
     # i will never arrive to this because all this is done above, pero por si las moscas
@@ -127,7 +127,7 @@ ___validate_hostname(){
     # first [a-z0-9] is to test that hostname do not begin with -
     # last [a-z0-9] is to test that hostname do not end with -
     # [a-z0-9-]{1,61} match 1 to 61 of a-z 0-9 or -
-    [[ "$1" =~ ^[a-z0-9][a-z0-9-]{1,61}[a-z0-9]$ ]] || { WARNC ; echo 'hostname is invalid' ; ENDC ; exit ; }
+    [[ "$1" =~ ^[a-z0-9][a-z0-9-]{1,61}[a-z0-9]$ ]] || { WARNC ; echo 'name is invalid' ; ENDC ; exit ; }
 
     
     # tests : all this have to gave errors
