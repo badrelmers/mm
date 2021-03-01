@@ -186,7 +186,7 @@ ___validate_hostname "${CTname_clone}"
 
 repochoice(){
 selectrepo(){
-    test -f /etc/_mm.conf || { WARNC ; echo you have to define a repository where I will save the containers. create one and add it to /etc/_mm.conf ...exiting ; ENDC ; exit 223 ; }
+    test -f /etc/_mm.conf || { WARNC ; echo 'no /etc/_mm.conf found. you have to define a repository where I will save the containers. create one and add it to /etc/_mm.conf ...exiting' ; ENDC ; exit 223 ; }
     
     echo "The following repositories were found in the config file /etc/_mm.conf; select one:"
     # this is to prevent problems with folders with space in path
