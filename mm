@@ -88,10 +88,10 @@ _common_functions(){
 }
 _common_functions
 export -f _common_functions
-###################################################
+######################################################################################
 
-
-validate_hostname(){
+# helper functions ###################################
+___validate_hostname(){
     # test if new name conform the hostname requirements:
     # test if var have only a-z 0-9 - and 63 char max and not begin or end with - and not have repeated -
     
@@ -110,16 +110,16 @@ validate_hostname(){
         # /etc/hostname
         # The file should contain a single newline-terminated hostname string. Comments (lines starting with a "#") are ignored. The hostname should be composed of up to 64 7-bit ASCII lower-case alphanumeric characters or hyphens forming a valid DNS domain name. It is recommended that this name contains only a single label, i.e. without any dots. Invalid characters will be filtered out in an attempt to make the name valid, but obviously it is recommended to use a valid name and not rely on this filtering.
         
-    [[ "$1" =~ ^- ]] && { echo 'hostname should not begin with -' ; return 1 ; }
+    [[ "$1" =~ ^- ]] && { WARNC ; echo 'hostname should not begin with -' ; ENDC ; exit ; }
     
-    [[ "$1" =~ -$ ]] && { echo 'hostname should not end with -' ; return 1 ; }
+    [[ "$1" =~ -$ ]] && { WARNC ; echo 'hostname should not end with -' ; ENDC ; exit ; }
 
     # --+ match succesive -
-    [[ "$1" =~ --+ ]] && { echo 'hostname should not contain succesive repeated -' ; return 1 ; }
+    [[ "$1" =~ --+ ]] && { WARNC ; echo 'hostname should not contain succesive repeated -' ; ENDC ; exit ; }
     
-    [[ ${#1} -gt 63 ]] && { echo 'hostname should not contain more than 63 char' ; return 1 ; }
+    [[ ${#1} -gt 63 ]] && { WARNC ; echo 'hostname should not contain more than 63 char' ; ENDC ; exit ; }
     
-    [[ "$1" =~ ^[a-z0-9-]+$ ]] || { echo 'hostname should contain only a-z (no uppercase) 0-9 or - chars' ; return 1 ; }
+    [[ "$1" =~ ^[a-z0-9-]+$ ]] || { WARNC ; echo 'hostname should contain only a-z (no uppercase) 0-9 or - chars' ; ENDC ; exit ; }
     
     # _____________
     # i will never arrive to this because all this is done above, pero por si las moscas
@@ -127,16 +127,16 @@ validate_hostname(){
     # first [a-z0-9] is to test that hostname do not begin with -
     # last [a-z0-9] is to test that hostname do not end with -
     # [a-z0-9-]{1,61} match 1 to 61 of a-z 0-9 or -
-    [[ "$1" =~ ^[a-z0-9][a-z0-9-]{1,61}[a-z0-9]$ ]] || { echo 'hostname is invalid' ; return 1 ; }
+    [[ "$1" =~ ^[a-z0-9][a-z0-9-]{1,61}[a-z0-9]$ ]] || { WARNC ; echo 'hostname is invalid' ; ENDC ; exit ; }
 
     
     # tests : all this have to gave errors
-    # validate_hostname '-dash'
-    # validate_hostname 'dash-'
-    # validate_hostname 'dash--dash'
-    # validate_hostname 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaz'  # 63char+z
-    # validate_hostname 'test.com'
-    # validate_hostname 'test_'
+    # ___validate_hostname '-dash'
+    # ___validate_hostname 'dash-'
+    # ___validate_hostname 'dash--dash'
+    # ___validate_hostname 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaz'  # 63char+z
+    # ___validate_hostname 'test.com'
+    # ___validate_hostname 'test_'
 }
 
 
@@ -160,8 +160,11 @@ ___get_ct_repo(){
             WARNC ; echo "${repository}/_MyMM was not found. if you delete it then clean it from /etc/_mm.conf" ; ENDC
         fi
     done < <(grep "\S" /etc/_mm.conf) # grep "\S" Remove completely blank lines (including lines with spaces).
-    [[ ${get_ct_repo_result} == no ]] && { WARNC ; echo "no container folder was found with this name: ${1}" ; ENDC ; exit 1 ; }
+    [[ ${get_ct_repo_result} == no ]] && { WARNC ; echo "no container folder was found with this name: ${1}" ; ENDC ; exit ; }
 }
+
+
+# commands functions ############################
 
 _print_container_repo_path(){
     ___get_ct_repo $1
@@ -170,14 +173,14 @@ _print_container_repo_path(){
         echo "${repository}/_MyMM/$1"
     else
         echo cannot find container repo
-        exit 1
+        exit
     fi
 }
 
 _register_ct(){
     if [ $# -lt 1 ] ; then
         WARNC ; echo "usage: mm register Names..." 1>&2 ; ENDC
-        return
+        exit
     fi
     
     for i in $@ ; do
@@ -194,7 +197,7 @@ _register_ct(){
 _unregister_ct(){
     if [ $# -lt 1 ] ; then
         WARNC ; echo "usage: mm unregister Names..." 1>&2 ; ENDC
-        return
+        exit
     fi
     
     for i in $@ ; do
@@ -250,21 +253,21 @@ _clone_ct(){
     # why not use "machinectl clone"? pk machinectl copia el folder desde el repository a /var/lib/machines y no copia the service override files,asi ke no sirve; por eso usare esto
     if [ $# -lt 2 ] ; then
         WARNC ; echo "usage: mm clone Name NewName" 1>&2 ; ENDC
-        return 1
+        exit
     fi
     
     ___get_ct_repo $1
     # do not clone if CT is running
-    machinectl | grep -q "^$1 " && { WARNC ; echo 'CT is running, stop it first' ; ENDC ; return 1 ; }
+    machinectl | grep -q "^$1 " && { WARNC ; echo 'CT is running, stop it first' ; ENDC ; exit ; }
     export datenowForHostname=$(date +%Y%m%d%H%M%S)
     
     # validate newName to conform hostname rules
-    validate_hostname "${2}" || return 1
+    ___validate_hostname "${2}"
 
     
     # test if new name is not used
-    test -L /var/lib/machines/${2} &&  { WARNC ; echo 'CT name exist, use another name' ; ENDC ; return 1 ; }
-    test -d ${thisrepository}/_MyMM/${2} &&  { WARNC ; echo 'CT name exist, use another name' ; ENDC ; return 1 ; }
+    test -L /var/lib/machines/${2} &&  { WARNC ; echo 'CT name exist, use another name' ; ENDC ; exit ; }
+    test -d ${thisrepository}/_MyMM/${2} &&  { WARNC ; echo 'CT name exist, use another name' ; ENDC ; exit ; }
     
     # clone and rename CT
     cp -a ${thisrepository}/_MyMM/${1} ${thisrepository}/_MyMM/${2}
@@ -295,8 +298,12 @@ _clone_ct_auto(){
     
     ___get_ct_repo $1
     # do not clone if CT is running
-    machinectl | grep -q "^$1 " && { WARNC ; echo CT is running, stop it first ; ENDC ; return ; }
+    machinectl | grep -q "^$1 " && { WARNC ; echo CT is running, stop it first ; ENDC ; exit ; }
     export datenowForHostname=$(date +%Y%m%d%H%M%S)
+    
+    # validate newName to conform hostname rules
+    ___validate_hostname "${1}-clone${datenowForHostname}"
+    
     
     # clone and rename CT
     cp -a ${thisrepository}/_MyMM/${1} ${thisrepository}/_MyMM/${1}-clone${datenowForHostname}
@@ -326,17 +333,21 @@ _rename_ct(){
     # why not use "machinectl rename"? pk machinectl renombra el symlink solo ke esta en /var/lib/machines y no renombra el container dir en el repository, asi ke no sirve; por eso usare esto
     if [ $# -lt 2 ] ; then
         WARNC ; echo "usage: mm rename Name NewName" 1>&2 ; ENDC
-        return
+        exit
     fi
     
     ___get_ct_repo $1
     
     # do not rename if CT is running
-    machinectl | grep -q "^$1 " && { WARNC ; echo 'CT is running, stop it first' ; ENDC ; return ; }
+    machinectl | grep -q "^$1 " && { WARNC ; echo 'CT is running, stop it first' ; ENDC ; exit ; }
+    
+    # validate newName to conform hostname rules
+    ___validate_hostname "${2}"
+    
     
     # test if new name is not used
-    test -L /var/lib/machines/${2} &&  { WARNC ; echo 'CT name exist, use another name' ; ENDC ; return ; }
-    test -d ${thisrepository}/_MyMM/${2} &&  { WARNC ; echo 'CT name exist, use another name' ; ENDC ; return ; }
+    test -L /var/lib/machines/${2} &&  { WARNC ; echo 'CT name exist, use another name' ; ENDC ; exit ; }
+    test -d ${thisrepository}/_MyMM/${2} &&  { WARNC ; echo 'CT name exist, use another name' ; ENDC ; exit ; }
     
     # rename CT
     mv ${thisrepository}/_MyMM/${1} ${thisrepository}/_MyMM/${2}
@@ -363,13 +374,13 @@ _rename_ct(){
 _delete_ct(){
     if [ $# -lt 1 ] ; then
         WARNC ; echo "usage: mm delete Name" 1>&2 ; ENDC
-        return
+        exit
     fi
     
     ___get_ct_repo $1
     
     # do not delete if CT is running
-    machinectl | grep -q "^$1 " && { WARNC ; echo CT is running, stop it first ; ENDC ; return ; }
+    machinectl | grep -q "^$1 " && { WARNC ; echo CT is running, stop it first ; ENDC ; exit ; }
 
     WARNC ; echo "I will delete this folder:"
     echo "   => ${thisrepository}/_MyMM/${1} <="
@@ -386,7 +397,7 @@ _delete_ct(){
               # delete CT autorun service
               test -f /etc/systemd/system/machines.target.wants/systemd-nspawn@${1}.service && rm /etc/systemd/system/machines.target.wants/systemd-nspawn@${1}.service
               ;;
-        n|N ) return ;;
+        n|N ) exit ;;
         * ) echo "invalid choice" ;;
     esac
     
