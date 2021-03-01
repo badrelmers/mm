@@ -197,7 +197,7 @@ repochoice
 # main
 ########################################################
 _clean() {
-    WARNC ; echo "begin cleaning..." ; ENDC
+    HIDEC ; echo "begin cleaning..." ; ENDC
         
     # si nspawn_finished no es igual finished  borramos la imagen 
     [ "${nspawn_finished:-}" = "NOTfinished" ] && { 
@@ -215,7 +215,7 @@ _clean() {
     
     # esta linea es importante sino se ejecuta el trap ERR si la linea de arriba da exit 1
     echo "end cleaning..."
-    exit 1
+    exit
 }
 
 ___validate_hostname(){
