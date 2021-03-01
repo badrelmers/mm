@@ -915,9 +915,9 @@ nspawn_finished=finished
 
 
 _build(){
-    if [ $# -lt 5 ] ; then
+    if [ $# -lt 4 ] ; then
         _help
-        echo "error: args less than 5"
+        echo "error: args less than 4"
     else
         _create_container $@
     fi
