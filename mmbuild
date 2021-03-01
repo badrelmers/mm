@@ -50,7 +50,7 @@ _common_functions(){
             local ___bash_command=$( printf '%s\n' "${BASH_COMMAND:-unkownnn}" | head -3)
             HIDEC ; echo "trap..._Func: ${FUNCNAME[1]:-unkownnn}" ; ENDC
             # [[ $1 -eq 0 ]] is to prevent running the trap because of trap EXIT when there is no error, i can use use trap ERR instead of trap ERR EXIT, but trap ERR do not trigger trap with undefined variables error; that s why i use trap ERR EXIT and [[ $1 -eq 0 ]]
-            [[ $1 -eq 0 ]] && return 0
+            [[ $1 -eq 0 ]] && exit 0
             ERRORC
             echo "_Exit:  $1   _Func: ${FUNCNAME[1]:-unkownnn}"
             echo "_line:  ${BASH_LINENO[*]:-unkownnn} in ${BASH_SOURCE[*]:-unkownnn}"
@@ -241,16 +241,16 @@ select opt in "${options[@]}" ;do
             repository="${myrepository}"
             if [ -z "${repository:-}" ]; then
                 WARNC ; echo 'no repository defined. create one and add it to /etc/_mm.conf ...exiting' ; ENDC
-                exit
+                exit 223
             fi
             if [ ! -d "${repository:-}" ]; then
                 WARNC ; echo 'this repository does not exit. create it first with mkdir ...exiting' ; ENDC
-                exit
+                exit 223
             fi
             break ;;
         *)  echo "invalid option $REPLY"
             # break
-            exit ;;
+            exit 223 ;;
     esac
 done
 
@@ -279,7 +279,7 @@ _clean() {
         
         # esta linea es importante sino se ejecuta el trap ERR si la linea de arriba da exit 1
         echo "end cleaning..."
-        exit 1
+        exit 223
     fi
 }
 
@@ -294,7 +294,7 @@ nspawn_finished=NOTfinished
 
 
 # TODO: this is not needed i already did it above , i can delete it
-test -d "${repository}" || { ERRORC ; echo "repository of nspawn containers was not created. create it manually first. you told me to use : ${repository}" ; ENDC ; exit ; }
+test -d "${repository}" || { ERRORC ; echo "repository of nspawn containers was not created. create it manually first. you told me to use : ${repository}" ; ENDC ; exit 223; }
 
 cd "${repository}"
 
@@ -305,7 +305,7 @@ grep -Fq "${repository}" /etc/_mm.conf || { echo "${repository}" >> /etc/_mm.con
 
 ########################################################
 CTname_DIR=${repository}/_MyMM/${CTname}
-test -d ${CTname_DIR} && { WARNC ; echo "container dir exist: ${CTname_DIR}" ; ENDC ; trap '' EXIT RETURN INT ; exit  ; }
+test -d ${CTname_DIR} && { WARNC ; echo "container dir exist: ${CTname_DIR}" ; ENDC ; trap '' EXIT RETURN INT ; exit 223 ; }
 mkdir -p _MyMM/${CTname}
 cd _MyMM/${CTname}
 
@@ -913,8 +913,8 @@ _build(){
     if [ $# -lt 4 ] ; then
         _help
         # WARNC ; echo "usage: $0 <image-file> <OS name> <OSversion> [optional debootstrap args]" 1>&2 ; ENDC
-        # exit 1
         WARNC ; echo "error: need 4 args at least" 1>&2 ; ENDC
+        exit 223
     else
         _create_container $@
     fi
