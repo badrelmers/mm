@@ -292,7 +292,7 @@ _clone_ct(){
 
     systemctl daemon-reload
     
-    echo container created: ${2}
+    echo container clone created: ${2}
 }
 
 _clone_ct_auto(){
@@ -329,7 +329,7 @@ _clone_ct_auto(){
 
     systemctl daemon-reload
     
-    echo container created: ${1}-clone${datenowForHostname}
+    echo container clone created: ${1}-clone${datenowForHostname}
 }
 
 _rename_ct(){
