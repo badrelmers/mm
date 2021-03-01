@@ -91,6 +91,56 @@ export -f _common_functions
 ###################################################
 
 
+validate_hostname(){
+    # test if new name conform the hostname requirements:
+    # test if var have only a-z 0-9 - and 63 char max and not begin or end with - and not have repeated -
+    
+    # https://www.freedesktop.org/software/systemd/man/org.freedesktop.hostname1.html
+        # Here are some recommendations to follow when generating a static (internet) hostname from a pretty name:
+        # Generate a single DNS label only, not an FQDN. That means no dots allowed. Strip them, or replace them by "-".
+        # It's probably safer not to use any non-ASCII chars, even if DNS allows this in some way these days. In fact, restrict your charset to a-zA-Z0-9, -.
+        # Try to avoid creating repeated "-", as well as "-" as the first or last char.
+        # Limit the hostname to 63 chars, which is the length of a DNS label
+        # Uppercase charaacters should be replaced with their lowercase equivalents.
+        
+    # man 5 hostname
+        # The /etc/hostname file configures the name of the local system that is set during boot using the sethostname(2) system call. It should contain a single newline-terminated hostname string. Comments (lines starting with a `#') are ignored. The hostname may be a free-form string up to 64 characters in length; however, it is recommended that it consists only of 7-bit ASCII lower-case characters and no spaces or dots, and limits itself to the format allowed for DNS domain name labels, even though this is not a strict requirement.
+
+    # https://www.freedesktop.org/software/systemd/man/hostname.html
+        # /etc/hostname
+        # The file should contain a single newline-terminated hostname string. Comments (lines starting with a "#") are ignored. The hostname should be composed of up to 64 7-bit ASCII lower-case alphanumeric characters or hyphens forming a valid DNS domain name. It is recommended that this name contains only a single label, i.e. without any dots. Invalid characters will be filtered out in an attempt to make the name valid, but obviously it is recommended to use a valid name and not rely on this filtering.
+        
+    [[ "$1" =~ ^- ]] && { echo 'hostname should not begin with -' ; return 1 ; }
+    
+    [[ "$1" =~ -$ ]] && { echo 'hostname should not end with -' ; return 1 ; }
+
+    # --+ match succesive -
+    [[ "$1" =~ --+ ]] && { echo 'hostname should not contain succesive repeated -' ; return 1 ; }
+    
+    [[ ${#1} -gt 63 ]] && { echo 'hostname should not contain more than 63 char' ; return 1 ; }
+    
+    [[ "$1" =~ ^[a-z0-9-]+$ ]] || { echo 'hostname should contain only a-z (no uppercase) 0-9 or - chars' ; return 1 ; }
+    
+    # _____________
+    # i will never arrive to this because all this is done above, pero por si las moscas
+    # this will test if var have only a-z 0-9 - and 63 char max and not begin or end with -
+    # first [a-z0-9] is to test that hostname do not begin with -
+    # last [a-z0-9] is to test that hostname do not end with -
+    # [a-z0-9-]{1,61} match 1 to 61 of a-z 0-9 or -
+    [[ "$1" =~ ^[a-z0-9][a-z0-9-]{1,61}[a-z0-9]$ ]] || { echo 'hostname is invalid' ; return 1 ; }
+
+    
+    # tests : all this have to gave errors
+    # validate_hostname '-dash'
+    # validate_hostname 'dash-'
+    # validate_hostname 'dash--dash'
+    # validate_hostname 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaz'  # 63char+z
+    # validate_hostname 'test.com'
+    # validate_hostname 'test_'
+}
+
+
+
 ___get_ct_repo(){
     # puesto ke uso multiple repositories , necesito saber en ke repo esta el container
     # usage: ___get_ct_repo VM
@@ -197,6 +247,50 @@ _list_all_containers_quicker(){
 }
 
 _clone_ct(){
+    # why not use "machinectl clone"? pk machinectl copia el folder desde el repository a /var/lib/machines y no copia the service override files,asi ke no sirve; por eso usare esto
+    if [ $# -lt 2 ] ; then
+        WARNC ; echo "usage: mm clone Name NewName" 1>&2 ; ENDC
+        return 1
+    fi
+    
+    ___get_ct_repo $1
+    # do not clone if CT is running
+    machinectl | grep -q "^$1 " && { WARNC ; echo 'CT is running, stop it first' ; ENDC ; return 1 ; }
+    export datenowForHostname=$(date +%Y%m%d%H%M%S)
+    
+    # validate newName to conform hostname rules
+    validate_hostname "${2}" || return 1
+
+    
+    # test if new name is not used
+    test -L /var/lib/machines/${2} &&  { WARNC ; echo 'CT name exist, use another name' ; ENDC ; return 1 ; }
+    test -d ${thisrepository}/_MyMM/${2} &&  { WARNC ; echo 'CT name exist, use another name' ; ENDC ; return 1 ; }
+    
+    # clone and rename CT
+    cp -a ${thisrepository}/_MyMM/${1} ${thisrepository}/_MyMM/${2}
+    
+    # create symlink only if $1 had symlink in /var/lib/machines too
+    test -L /var/lib/machines/${1} && ln -s ${thisrepository}/_MyMM/${2} /var/lib/machines/${2}
+    
+    # clone and rename autorun service if exist
+    # TODO: no se si kiero esto, pk generalmente hare clone para hacer tests asi ke no necesito hacer ke el CT bootea al reiniciar .y de todas formas tengo la opcion de ponerlo autorun facilmente con "mm enable" ... asi ke no copiare el autorun mejor
+    
+    # copy service override files
+    test -d /etc/systemd/system/systemd-nspawn@${1}.service.d && cp -a /etc/systemd/system/systemd-nspawn@${1}.service.d /etc/systemd/system/systemd-nspawn@${2}.service.d
+
+    # edit hostname and hosts
+    sed -i "s/${1}/${2}/g" ${thisrepository}/_MyMM/${2}/etc/hostname
+    sed -i "s/${1}/${2}/g" ${thisrepository}/_MyMM/${2}/etc/hosts
+
+    # save new CT name
+    echo "name:${2} ___ date:$(date)" >> ${thisrepository}/_MyMM/${2}/_MyMMfiles/_container_names.txt
+
+    systemctl daemon-reload
+    
+    echo container created: ${2}
+}
+
+_clone_ct_auto(){
     # "machinectl clone" copia el folder desde el repository a /var/lib/machines y no copia the service override files,asi ke no sirve; por eso usare esto
     
     ___get_ct_repo $1
@@ -229,7 +323,7 @@ _clone_ct(){
 }
 
 _rename_ct(){
-    # "machinectl rename" renombra el symlink solo ke esta en /var/lib/machines y no renombra el contanner dir en el repository ,asi ke no sirve; por eso usare esto
+    # why not use "machinectl rename"? pk machinectl renombra el symlink solo ke esta en /var/lib/machines y no renombra el container dir en el repository, asi ke no sirve; por eso usare esto
     if [ $# -lt 2 ] ; then
         WARNC ; echo "usage: mm rename Name NewName" 1>&2 ; ENDC
         return
@@ -237,7 +331,7 @@ _rename_ct(){
     
     ___get_ct_repo $1
     
-    # do not clone if CT is running
+    # do not rename if CT is running
     machinectl | grep -q "^$1 " && { WARNC ; echo 'CT is running, stop it first' ; ENDC ; return ; }
     
     # test if new name is not used
@@ -345,7 +439,9 @@ config file: /etc/_mm.conf
     iinfo [NAMEs...]        Show properties of image (show-image)
     istatus [NAMEs...]      Show image details (image-status)
     
-    clone NAME              Clone a CT (CT dir & symlink, service override if they exist , but not autorun file; & hostname)
+    clone NAME NewName      Clone a CT (CT dir & symlink, service override if they exist , but not autorun file; & hostname)
+    cloneauto NAME          Clone a CT (CT dir & symlink, service override if they exist , but not autorun file; & hostname)
+                            this autoname the clone CT as oldname-cloneDate
     rename NAME NewName     Rename a CT (CT dir & symlink, service override and autorun files if they exist; & hostname)
     
     delete NAME             Delete CT completly (CT dir, symlink, service override and autorun files)
@@ -396,7 +492,8 @@ case "$cmd" in
     iinfo)       machinectl show-image $@ ;;
     istatus)     machinectl image-status $@ ;;
     
-    clone)       _clone_ct ${1:-} ;;    
+    clone)       _clone_ct ${1:-} ${2:-} ;;
+    cloneauto)   _clone_ct_auto ${1:-} ;;
     # do not quote $2 sino no me funcionara el test con $# para saber cuantos parametros fueron pasados
     rename)      _rename_ct ${1:-} ${2:-} ;;
     # do not quote $1 sino no me funcionara el test con $# para saber cuantos parametros fueron pasados
