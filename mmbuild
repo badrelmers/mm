@@ -885,7 +885,8 @@ echo "name:${CTname} ___ date:$(date)" >> ${CTname_DIR}/_MyMMfiles/_container_na
 mm clone ${CTname} ${CTname_clone}
 # i do not need to register the clean version i can use mm to do it , it s better because it will create the service override ...Etc
 # ln -s ${CTname_DIR}-clean /var/lib/machines/${CTname}-clean
-
+# puesto que mm clone will register the cloned CT (because the CT was registred above) then we will unregistre it 
+mm unregister ${CTname_clone}
 
 ########################################################
  
