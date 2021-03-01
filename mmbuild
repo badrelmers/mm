@@ -201,7 +201,7 @@ selectrepo(){
     select myyrepo in $mmrepos exit ; do
         local IFS="$IFSold"
         # leave the loop if the user says 'exit'
-        if [[ "$REPLY" == exit ]]; then break; fi
+        if [[ "$REPLY" == exit ]]; then exit; fi
 
         # complain if no file was selected, and loop to ask again
         if [[ "$myyrepo" == "" ]]
