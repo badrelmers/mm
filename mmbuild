@@ -1,5 +1,6 @@
 #!/bin/bash
 
+mmversion=0.3
 # mmbuild create an nspawn container
 # author: Badr Elmers in 2021
 # https://github.com/badrelmers
