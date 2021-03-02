@@ -1,5 +1,6 @@
 #!/bin/bash
 
+mmversion=0.3
 # mm machinectl manager
 # author: Badr Elmers in 2021
 # https://github.com/badrelmers
