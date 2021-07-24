@@ -13,7 +13,7 @@ bash ./mm/install.sh
 all containers need to be saved somewhere, so I choosed to create a config file `/etc/_mm.conf` where we will save the path to the folders we want to use as a repository for the containers, I could have used the default machinectl folder `/var/lib/machines` but I prefer my method because like this I can format any time without problems, because `mm` will create a symlink from my defined repository to `/var/lib/machines`, like this you do not have to take care of moving the containers before formating the disks. another benefit is that we can use diferent disks to save the containers.
 that is why I created the command `mm register ContainerName` which will create a symlink of the container inside `/var/lib/machines`
 
-by default the created container will run with full privileges using the host networking. to run the container unprivileged or with more privilges or with a diferent network mode, then you have to read the content of `mm edit ContainerName` , understand it and edit it as needed. you can choose between priviliged (default), unprivileged or super privileged mode, and between bridged, NAT or host network (default).
+by default the created container will run with full privileges using the host networking. to run the container unprivileged or with more privileges or with a different network mode, then you have to read the content of `mm edit ContainerName` , understand it and edit it as needed. you can choose between priviliged (default), unprivileged or super privileged mode, and between bridged, NAT or host network (default).
 
 TODO: add commands to change between privileged/unprivilged, and to change between host/nat/bridge network
 
